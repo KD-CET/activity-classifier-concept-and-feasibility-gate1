@@ -1,0 +1,18 @@
+Watch link code tested on a PC (simulated Wi-Fi and broker)
+Date: November 13, 2026        Code: firmware/ActivityClassifier/activity_link.h
+
+Method
+  The watch's real link task (outbox, resend until ack, Wi-Fi/clock/server states) was compiled
+  on a PC with stand-ins for Wi-Fi and the MQTT library. The stand-in broker dropped 20 % of
+  reports and 20 % of acks, and rejected duplicates like the real receiver (db.py).
+  Script: a session start, an activity change every 20 s for 5 minutes, a session end, and a
+  60 s Wi-Fi outage from 100 s to 160 s.
+
+Result
+  All 14 activity changes + session_start + session_end stored exactly once, in order
+  (sequence numbers strictly increasing). Reports made during the outage (105, 125, 145 s)
+  were sent after it with their real time stamps. No heartbeats queued during the outage.
+  Every message passed the real receiver's validation (receiver.validate).
+
+Limits
+  Simulated network, not the real radio. The real-link tests (C3-C5) are still to be done.

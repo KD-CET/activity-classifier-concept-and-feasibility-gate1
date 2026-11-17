@@ -1,0 +1,15 @@
+activity,label,minutes
+ascending_stairs,test_only,19.4
+car_driving,sedentary,9.1
+computer_work,sedentary,51.6
+descending_stairs,test_only,17.3
+folding_laundry,test_only,16.6
+house_cleaning,test_only,31.1
+ironing,test_only,39.7
+lying,sedentary,32.0
+running,running,16.3
+sitting,sedentary,30.7
+standing,sedentary,31.5
+vacuum_cleaning,test_only,29.1
+walking,walking,39.7
+watching_tv,sedentary,13.9

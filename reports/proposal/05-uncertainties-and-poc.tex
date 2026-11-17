@@ -1,0 +1,100 @@
+\section{Uncertainties and PoC Plan}
+\label{sec:poc}
+
+\subsection{Ranked Uncertainty Register}
+
+Table~\ref{tab:uncertainties} ranks the three uncertainties that
+would most damage the project if wrong; R1 is attacked first.
+
+\begin{table*}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{Three ranked uncertainties. R1 is attacked first, since it would invalidate the most work if wrong.}
+\label{tab:uncertainties}
+\begin{tabular}{p{1.9cm}p{4.95cm}p{4.95cm}p{4.95cm}}
+\toprule
+\textbf{Field} & \textbf{R1 (ranked 1st)} & \textbf{R2 (ranked 2nd)} & \textbf{R3 (ranked 3rd)} \\
+\midrule
+Statement &
+The fused classifier may not reach the 15\% error target on
+wearers it was not trained on. &
+Delivery under a genuinely degraded link may exceed the 30\,s
+target, or messages may be lost rather than retried. &
+Fusing chest and/or thigh features with the wrist may not lower
+error compared to wrist alone, undermining the reason for the
+custom board. \\[0.6em]
+
+Assumption &
+Motion features learned from five volunteers generalize to a
+sixth, unseen wearer. &
+The report/retry logic behaves correctly under injected delay
+and packet loss, not only under a healthy link. &
+Spatial diversity across sensing sites decorrelates misleading
+readings enough to matter for these three activities. \\[0.6em]
+
+Consequence &
+REQ-AC-02 unmet; the AI claim in the PoC question fails. &
+REQ-AC-04/05 unmet; the IoT claim in the PoC question fails. &
+The custom board's contribution goes unproven, though the
+system still works via the wrist-only fallback tier. \\[0.6em]
+
+Probability &
+Unknown with only five volunteers -- treated as an uncertainty,
+not a risk. &
+Unknown until tested under real degraded conditions --
+uncertainty. &
+Unknown -- uncertainty. \\[0.6em]
+
+Evidence\newline required &
+Leave-one-wearer-out error measured across all five volunteers. &
+Delivery latency and message loss measured under the
+degraded-link profile and a full link outage (defined below). &
+Wrist-only vs.\ board-only vs.\ full-fusion error compared on
+the same leave-one-wearer-out evaluation (REQ-AC-09). \\[0.6em]
+
+Mitigation &
+If exceeded, revisit the feature set or record additional
+volunteers before final submission. &
+If exceeded, relax the degraded-link time budget with a
+recorded reason, or widen the retry buffer. &
+If fusion does not help, report that honestly and treat
+wrist-only as the primary design in Stage 1. \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Proof of Concept Plan}
+
+\textbf{Question:} Does fusing wrist, chest and/or thigh IMU data
+improve activity classification over wrist alone, and does the
+link deliver each result on time when degraded, with no loss once
+a full outage recovers?
+
+\textbf{Link conditions} (applied by the companion computer's
+test rig, which carries the traffic but does no classification):
+\begin{itemize}
+\item \emph{Healthy:} no added delay or loss, watch and board in
+the same room as the access point.
+\item \emph{Degraded:} 500\,ms added delay and 20\% packet loss
+on the watch-to-computer path.
+\item \emph{Outage:} link fully cut for 60\,s, then restored.
+\end{itemize}
+
+\textbf{Measurements:}
+\begin{itemize}
+\item Error rate: wrist-only vs.\ board-only (chest and/or thigh)
+vs.\ full fusion, per left-out wearer.
+\item Activity-change delivery time to the computer: healthy vs.\
+degraded link.
+\item Messages lost and recovery behaviour during a full link
+outage.
+\end{itemize}
+
+\textbf{Pass criterion (fixed in advance):} fused mean error at
+most 15\% across left-out wearers, reported alongside wrist-only
+error; each activity change reaches the computer within 10\,s on
+a healthy link and 30\,s on a degraded link; no message lost once
+a full outage recovers. Fusion is kept as the primary design only
+if its error is lower than wrist-only; otherwise wrist-only
+becomes primary (R3 mitigation).

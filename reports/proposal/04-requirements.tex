@@ -1,0 +1,140 @@
+\section{Provisional Requirements}
+\label{sec:reqs}
+
+All requirements below are provisional: none has been tested yet,
+and each is marked so. The healthy-link, degraded-link and outage
+conditions referred to in Table~\ref{tab:reqs} are defined in
+Section~\ref{sec:poc}.
+
+\begin{table*}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{Provisional requirements, one row per requirement.}
+\label{tab:reqs}
+\begin{tabular}{p{1.5cm}p{1.5cm}p{3.9cm}p{3.8cm}p{4.2cm}p{0.7cm}}
+\toprule
+\textbf{ID} & \textbf{Class} & \textbf{Statement} & \textbf{Rationale} & \textbf{Method: acceptance criterion} & \textbf{Need} \\
+\midrule
+
+REQ-AC-01 & Functional &
+The system shall classify the wearer's activity as sedentary,
+walking, or running from wrist, chest and/or thigh sensor data. &
+Directly answers N1: automatic tracking with no manual logging
+from the wearer. &
+Demonstration: correct label shown live during a scripted
+sit/walk/run session. &
+N1 \\[0.6em]
+
+REQ-AC-02 & Performance &
+The classifier shall achieve a mean classification error of at
+most 15\% across left-out wearers. &
+Keeps daily active-minute totals usable; an achievable target
+given a five-volunteer dataset. &
+Test: leave-one-wearer-out evaluation across all five
+volunteers, error averaged. &
+N1 \\[0.6em]
+
+REQ-AC-03 & Performance &
+The system shall report each detected activity change to the
+companion computer within 10\,s when the wireless link is
+healthy. &
+Fast enough to feel current for habit-forming feedback (N2);
+reporting only on change, rather than streaming, keeps network
+traffic light -- resolves the stakeholder collision in
+Section~\ref{sec:scope}. &
+Test: measured delivery latency across repeated activity
+changes during a 30-minute mixed-activity session, link healthy. &
+N2 \\[0.6em]
+
+REQ-AC-04 & Performance &
+The system shall report each detected activity change to the
+companion computer within 30\,s when the wireless link is
+degraded. &
+Allows room for retries on a degraded link while still keeping
+feedback usefully timely. &
+Test: delivery latency measured under the degraded-link profile
+in Section~\ref{sec:poc}. &
+N2 \\[0.6em]
+
+REQ-AC-05 & Functional &
+The system shall buffer activity reports during a full link
+outage and retry until every buffered report is delivered once
+the link recovers. &
+A silent gap in feedback during an outage would work against
+the habit-forming purpose of N2. &
+Test: link cut for the outage duration in
+Section~\ref{sec:poc}, then restored; computer log checked for
+completeness. &
+N2 \\[0.6em]
+
+REQ-AC-06 & Constraint &
+The trained on-device classifier shall fit within the watch's
+available memory budget (C1). &
+C1 (Section~\ref{sec:platform}) bounds model size; verifying this
+before full training avoids discovering an oversized model late. &
+Inspection: compiled model size checked against the memory
+available on the watch (C1). &
+N1 \\[0.6em]
+
+REQ-AC-07 & Interface &
+The custom board shall transmit its feature packets to the
+watch over a wireless link. &
+Matches the architecture fixed in Section~\ref{sec:platform};
+keeps the watch's limited expansion pads free. &
+Demonstration: board-to-watch data observed arriving over the
+wireless link during a live session, no wired connection
+present. &
+N1 \\[0.6em]
+
+REQ-AC-08 & Buildability &
+The project's firmware and training pipeline shall deploy to a
+clean watch and board from one documented command. &
+A collaborator, or the author after a failure, must be able to
+rebuild the system without undocumented manual steps. &
+Demonstration: deploy succeeds on a second computer with no
+manual edits to source. &
+N3 \\[0.6em]
+
+REQ-AC-09 & Performance &
+Fused classification error shall be measured and reported
+alongside wrist-only error on the same leave-one-wearer-out
+evaluation. &
+Shows whether the custom board earns its place; addresses R3
+(Section~\ref{sec:poc}). &
+Test: per-wearer error compared for wrist-only, board-only and
+full-fusion configurations. &
+N1 \\[0.6em]
+
+REQ-AC-10 & Functional &
+When a board feature stream is missing, the system shall classify
+on the remaining features, down to wrist alone, and tag each
+report with the sensors that produced it. &
+Keeps feedback continuous through a sensor dropout (N2) without
+presenting a fallback result as an ordinary one. &
+Demonstration: board sensors disconnected mid-session; reports
+continue and carry the correct tag. &
+N2 \\[0.6em]
+
+REQ-AC-11 & Performance &
+The system shall report the session's accumulated active minutes,
+with the reported activity agreeing with a labelled reference
+recording on at least 85\% of 1-minute intervals. &
+Carries the Objective (Section~\ref{sec:need}) into a testable
+requirement. &
+Test: 30-minute scripted mixed-activity session compared
+interval by interval against the reference labels. &
+N1 \\[0.6em]
+
+REQ-AC-12 & Functional &
+The companion computer shall show the wearer's active minutes for
+the current session alongside their previous sessions. &
+N2 asks for progress and comparison with past days, not a raw
+count alone. &
+Demonstration: progress view shown after at least three logged
+sessions. &
+N2 \\
+
+\bottomrule
+\end{tabular}
+\end{table*}

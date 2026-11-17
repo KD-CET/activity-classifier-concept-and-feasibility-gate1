@@ -1,0 +1,11 @@
+,importance
+acc_max,0.2393
+acc_jerk,0.1921
+acc_std,0.1672
+gyro_std,0.1243
+gyro_mean,0.107
+acc_mean,0.1
+gyro_max,0.0461
+cadence_power,0.0142
+acc_min,0.007
+cadence_hz,0.0027

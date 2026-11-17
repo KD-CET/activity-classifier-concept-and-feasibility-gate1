@@ -1,0 +1,95 @@
+NODE-RED MQTT DASHBOARD - Activity Tracker
+==========================================
+
+HOW IT FITS TOGETHER
+  watch --MQTT--> Mosquitto --> mqtt_receiver.py --> database
+                      ^               |
+                      |               +--> publishes "activity/summary" every 3 s
+                      |                    and right after each new report
+                      +---------------- Node-RED subscribes to activity/summary
+                                        and shows it: http://<address>:1880/dashboard
+
+  * mqtt_receiver.py still does the careful part: acks the watch, rejects duplicates, stores
+    everything, works out sessions and minutes. It is tested.
+  * Node-RED only DISPLAYS. Its flow (activity_dashboard_flow.json) has one "mqtt in" node,
+    four function nodes that turn the summary into HTML, and four Dashboard 2.0 templates.
+  * Two dashboard pages: Overview (right now + session ribbon + figures, active minutes per
+    session, recent changes) and System health (sensors, delivery delay vs 10 s, the watch's
+    online/offline from the broker's Last Will, retries, delivery log).
+  * The plain web dashboard keeps working too: http://<address>:8000
+
+
+PART 1 - TRY IT ON YOUR WINDOWS LAPTOP FIRST
+---------------------------------------------
+You need Mosquitto + mqtt_receiver.py running (MQTT_GUIDE.txt Part 1). Then:
+
+1. Install Node.js "LTS" from nodejs.org (default options).
+2. Install Node-RED. In Command Prompt:
+       npm install -g --unsafe-perm node-red
+3. Start it (leave this window open):
+       node-red
+   Open the editor: http://127.0.0.1:1880
+4. Add the Dashboard: menu (three lines, top right) > Manage palette > Install tab >
+   search  @flowfuse/node-red-dashboard  > Install.
+5. Load the flow: menu > Import > "select a file to import" >
+   server\nodered\activity_dashboard_flow.json > Import. Then click the red Deploy button.
+   (If it says some nodes are already there, choose to import a copy or replace.)
+6. Make data: in another window run the fake watch
+       python mqtt_simulator.py --change-every 10 --heartbeat 5
+7. Open the dashboard: http://127.0.0.1:1880/dashboard
+   The pages are in the menu at the top left. Values update every few seconds.
+   Try  python mqtt_simulator.py --drop-after 15  and watch System health turn to
+   "Offline" (the broker's Last Will).
+
+
+PART 2 - ON THE RASPBERRY PI ZERO 2 W
+-------------------------------------
+Use Raspberry Pi OS Lite (64-bit), set up with Wi-Fi + SSH as in pi/PI_GUIDE.txt steps 1-3.
+Then on the Pi (SSH):
+       cd ~/server
+       bash pi/setup_pi_mqtt.sh
+  * Installs Mosquitto, starts mqtt_receiver.py as a service, installs Node-RED (answer 'y' to
+    its installer's questions) and Dashboard 2.0, loads the flow, and sets the time zone
+    (America/Toronto; change with TZ_NAME=... in front of the command).
+  * Takes 20-40 minutes on a Pi Zero 2 W, mostly Node-RED. Needs internet on the Pi.
+  * Everything starts by itself at every boot.
+  * If Node-RED already had flows, they are left alone: import the flow as in Part 1, step 5,
+    using http://<pi-address>:1880.
+Open:  http://<pi-address>:1880/dashboard   from any phone or laptop on the same Wi-Fi.
+
+Point the watch at the Pi, in link_config.h:
+       #define LINK_USE_MQTT 1
+       #define LINK_HOST "<pi-address>"
+       #define MQTT_PORT 1883
+
+Memory on the Pi: Node-RED is the biggest program (roughly 100-150 MB); the setup limits its
+Node.js memory to 256 MB. Mosquitto and mqtt_receiver.py are small. Check with:  top
+
+
+CHANGING THE DASHBOARD
+----------------------
+  * Easy changes (names, group widths, page order): in the Node-RED editor, double-click a node,
+    edit, Deploy.
+  * Changing what a section shows: the code is in nodered/src/*.js and style.css. Edit there,
+    run  python build_flow.py  to rebuild activity_dashboard_flow.json, and import it again
+    (replace the old nodes). The same code can also be edited directly in the function nodes.
+
+
+TROUBLESHOOTING
+---------------
+Dashboard says nothing / sections empty   Nothing published yet: is mqtt_receiver.py running
+                                          and connected? Its window/log shows
+                                          "dashboard summary on MQTT topic activity/summary".
+Node-RED "mqtt in" shows "disconnected"   Mosquitto not running, or (laptop) started without
+                                          the config. In the editor the node shows a status dot.
+"Unknown node type ui-template"           Dashboard 2.0 is not installed (Part 1 step 4), then
+                                          restart Node-RED.
+Times are off by hours (Pi)               Time zone: sudo timedatectl set-timezone America/Toronto
+                                          then sudo systemctl restart nodered
+Watch MQTT Explorer instead               Topic activity/summary holds the whole summary JSON.
+
+NOT TESTED HERE
+  The function nodes' code was run and checked in Node.js with real summaries, and the flow's
+  wiring was checked. Node-RED and Dashboard 2.0 themselves could not be run while building
+  this, so the first import is the real test. If a node shows an error, the editor's debug
+  sidebar (bug icon) says why.

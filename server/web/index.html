@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Activity Tracker</title>
+<meta name="description" content="Live activity from the wrist classifier, served by the receiver on the Raspberry Pi.">
+<style>
+/* One file, no outside fonts or libraries: it must load from the Pi with no internet.
+   The browser does all the drawing; the Pi only sends a small summary every few seconds. */
+:root {
+  --bg: #eef1f6;          /* fog */
+  --surface: #ffffff;
+  --ink: #1c2433;         /* ink blue */
+  --muted: #5b6577;
+  --line: #d6dce6;
+  --track: #e3e8f0;
+  --sed: #6d78e8;         /* the watch's colours: indigo, green, orange */
+  --walk: #1fa97a;
+  --run: #f08a3c;
+  --ok: #1fa97a;
+  --warn: #c98a12;
+  --bad: #d64545;
+  --radius-big: 18px;
+  --radius-small: 6px;
+  --display: ui-rounded, "SF Pro Rounded", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --text: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121826; --surface: #1b2334; --ink: #e8ecf3; --muted: #9aa5b8;
+    --line: #2c374d; --track: #263045;
+    --sed: #8f98ff; --walk: #34d399; --run: #fb9a4f;
+    --ok: #34d399; --warn: #f2b63d; --bad: #f87171;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121826; --surface: #1b2334; --ink: #e8ecf3; --muted: #9aa5b8;
+  --line: #2c374d; --track: #263045;
+  --sed: #8f98ff; --walk: #34d399; --run: #fb9a4f;
+  --ok: #34d399; --warn: #f2b63d; --bad: #f87171;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.5 var(--text); font-variant-numeric: tabular-nums;
+}
+.wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 48px; }
+
+/* ---- top bar ---- */
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 20px; }
+header h1 { font: 700 1.25rem/1.2 var(--display); margin: 0; letter-spacing: -0.01em; }
+nav { display: flex; gap: 4px; background: var(--track); padding: 4px; border-radius: 999px; }
+nav button {
+  font: 600 0.92rem var(--text); color: var(--muted); background: none; border: 0;
+  padding: 6px 14px; border-radius: 999px; cursor: pointer;
+}
+nav button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(20,30,50,.12); }
+.link { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 0.92rem; color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+button:focus-visible, a:focus-visible { outline: 3px solid var(--sed); outline-offset: 2px; }
+
+.notice { padding: 10px 14px; border-radius: var(--radius-small); margin-bottom: 16px; font-size: 0.95rem;
+  background: color-mix(in srgb, var(--warn) 14%, var(--surface)); border-left: 4px solid var(--warn); }
+.notice.bad { background: color-mix(in srgb, var(--bad) 12%, var(--surface)); border-left-color: var(--bad); }
+
+/* ---- the "now" panel: the one loud element ---- */
+.now { background: var(--surface); border-radius: var(--radius-big); padding: 24px 24px 20px; }
+.now-word { font: 800 clamp(2.6rem, 9vw, 4.75rem)/1 var(--display); letter-spacing: -0.03em; margin: 0;
+  color: var(--act, var(--ink)); transition: color .4s ease; }
+.now-sub { margin: 8px 0 22px; color: var(--muted); font-size: 1.02rem; }
+.now-sub strong { color: var(--ink); font-weight: 600; }
+
+.ribbon { display: flex; height: 44px; border-radius: var(--radius-small); overflow: hidden; background: var(--track); gap: 2px; }
+.ribbon span { min-width: 2px; }
+.ribbon-ends { display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.85rem; color: var(--muted); }
+
+.figures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 24px; margin-top: 22px;
+  padding-top: 18px; border-top: 1px solid var(--line); }
+.fig-label { font-size: 0.88rem; color: var(--muted); }
+.fig-value { font: 700 1.9rem/1.15 var(--display); letter-spacing: -0.01em; }
+.fig-value small { font: 500 1rem var(--text); color: var(--muted); margin-left: 3px; }
+.fig-note { font-size: 0.86rem; color: var(--muted); }
+.fig-note.up { color: var(--ok); } .fig-note.down { color: var(--bad); }
+
+.split { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--track); margin: 10px 0 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.86rem; color: var(--muted); }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+
+/* ---- lower sections: quiet, no cards ---- */
+.lower { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px; margin-top: 30px; }
+.lower > section { min-width: 0; }
+h2 { font: 700 1.05rem/1.3 var(--display); margin: 0 0 4px; }
+.hint { margin: 0 0 14px; font-size: 0.88rem; color: var(--muted); }
+
+.bars { display: flex; align-items: flex-end; gap: 8px; height: 170px; border-bottom: 1px solid var(--line); }
+.bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.bar b { font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+.bar span { width: 100%; max-width: 42px; background: color-mix(in srgb, var(--walk) 45%, var(--track)); border-radius: 4px 4px 0 0; }
+.bar.current span { background: var(--walk); }
+.bar.current b { color: var(--ink); }
+.bar-names { display: flex; gap: 8px; margin-top: 5px; }
+.bar-names span { flex: 1; text-align: center; font-size: 0.74rem; color: var(--muted); min-width: 0; overflow: hidden; white-space: nowrap; }
+
+.changes { list-style: none; margin: 0; padding: 0; }
+.changes li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 0.95rem; }
+.changes li:last-child { border-bottom: 0; }
+.changes time { color: var(--muted); min-width: 4.2em; }
+.changes i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.changes .src { margin-left: auto; color: var(--muted); font-size: 0.84rem; }
+
+/* ---- health ---- */
+.health-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 24px; background: var(--surface);
+  border-radius: var(--radius-big); padding: 22px 24px; }
+.meter { height: 8px; border-radius: 4px; background: var(--track); margin-top: 8px; position: relative; overflow: hidden; }
+.meter span { position: absolute; inset: 0 auto 0 0; background: var(--ok); border-radius: 4px; }
+.table-wrap { overflow-x: auto; margin-top: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th { text-align: left; font-weight: 600; color: var(--muted); padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td.num, th.num { text-align: right; }
+td.late { color: var(--bad); font-weight: 600; }
+.empty { color: var(--muted); padding: 18px 0; }
+
+[hidden] { display: none !important; }
+@media (max-width: 760px) {
+  .lower { grid-template-columns: minmax(0, 1fr); }
+  .health-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .link { margin-left: 0; width: 100%; }
+}
+@media (max-width: 460px) {
+  .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .figures .fig:last-child { grid-column: 1 / -1; }
+  .now { padding: 20px 18px 18px; }
+}
+@media (prefers-reduced-motion: reduce) { .now-word { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Activity Tracker</h1>
+    <nav role="tablist" aria-label="Pages">
+      <button role="tab" id="tab-overview" aria-selected="true" aria-controls="page-overview">Overview</button>
+      <button role="tab" id="tab-health" aria-selected="false" aria-controls="page-health">System health</button>
+    </nav>
+    <div class="link" aria-live="polite"><span class="dot" id="link-dot"></span><span id="link-text">Connecting to the Pi…</span></div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <!-- ===================== Overview ===================== -->
+  <main id="page-overview" role="tabpanel" aria-labelledby="tab-overview">
+    <section class="now" aria-label="Right now">
+      <p class="now-word" id="now-word">—</p>
+      <p class="now-sub" id="now-sub">Waiting for the first report from the watch.</p>
+      <div class="ribbon" id="ribbon" role="img" aria-label="This session, coloured by activity"></div>
+      <div class="ribbon-ends"><span id="ribbon-start"></span><span id="ribbon-end"></span></div>
+
+      <div class="figures">
+        <div class="fig">
+          <div class="fig-label">Active minutes this session</div>
+          <div class="fig-value" id="active-min">–</div>
+          <div class="fig-note" id="active-note"></div>
+        </div>
+        <div class="fig">
+          <div class="fig-label">Session length</div>
+          <div class="fig-value" id="length-min">–</div>
+          <div class="fig-note" id="length-note"></div>
+        </div>
+        <div class="fig">
+          <div class="fig-label">Time in each activity</div>
+          <div class="split" id="split"></div>
+          <div class="legend" id="legend"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="lower">
+      <section aria-labelledby="h-sessions">
+        <h2 id="h-sessions">Active minutes per session</h2>
+        <p class="hint">Walking and running, last 10 sessions. The darkest bar is the one shown above.</p>
+        <div class="bars" id="bars"></div>
+        <div class="bar-names" id="bar-names"></div>
+      </section>
+      <section aria-labelledby="h-changes">
+        <h2 id="h-changes">Recent changes</h2>
+        <p class="hint">Newest first.</p>
+        <ul class="changes" id="changes"></ul>
+      </section>
+    </div>
+  </main>
+
+  <!-- ===================== System health ===================== -->
+  <main id="page-health" role="tabpanel" aria-labelledby="tab-health" hidden>
+    <section class="health-figs" aria-label="Link status">
+      <div>
+        <div class="fig-label">Sensors used</div>
+        <div class="fig-value" id="h-sensors">–</div>
+        <div class="fig-note">Fewer sensors means a fallback is in use</div>
+      </div>
+      <div>
+        <div class="fig-label">Last delivery delay</div>
+        <div class="fig-value" id="h-delay">–</div>
+        <div class="meter" aria-hidden="true"><span id="h-delay-bar" style="width:0"></span></div>
+        <div class="fig-note">Target: 10 s</div>
+      </div>
+      <div>
+        <div class="fig-label">Link</div>
+        <div class="fig-value" id="h-link">–</div>
+        <div class="fig-note" id="h-heard"></div>
+      </div>
+      <div>
+        <div class="fig-label">Messages that needed a retry</div>
+        <div class="fig-value" id="h-retries">–</div>
+        <div class="fig-note" id="h-retries-note"></div>
+      </div>
+    </section>
+
+    <section style="margin-top:28px" aria-labelledby="h-log">
+      <h2 id="h-log">Delivery log</h2>
+      <p class="hint">Newest first. Delay is the time from the watch to the Pi; red means over the 10 s target.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Message</th><th>Activity</th><th>Sensors</th><th class="num">Delay</th><th class="num">Retries</th></tr></thead>
+          <tbody id="log"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+"use strict";
+const POLL_MS = 3000;              // how often to ask the Pi (paused while the tab is hidden)
+const NAMES = { sedentary: "Sedentary", walking: "Walking", running: "Running" };
+const ORDER = ["sedentary", "walking", "running"];
+const VAR = { sedentary: "var(--sed)", walking: "var(--walk)", running: "var(--run)" };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const hhmm = (ts) => new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const hhmmss = (ts) => new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const dayTime = (ts) => {
+  const d = new Date(ts * 1000), today = new Date();
+  return d.toDateString() === today.toDateString() ? hhmm(ts)
+    : d.toLocaleDateString([], { month: "short", day: "numeric" }) + ", " + hhmm(ts);
+};
+// session labels: the time for today's sessions, the date for earlier ones
+const dayLabel = (ts) => {
+  const d = new Date(ts * 1000);
+  return d.toDateString() === new Date().toDateString() ? hhmm(ts)
+    : d.toLocaleDateString([], { month: "short", day: "numeric" });
+};
+const mins = (m) => (m < 10 ? m.toFixed(1) : Math.round(m).toString());
+function duration(s) {
+  if (s < 60) return Math.max(0, Math.round(s)) + " s";
+  const m = Math.floor(s / 60);
+  return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60) + " min";
+}
+
+/* ---------- tabs ---------- */
+function showTab(name) {
+  const health = name === "health";
+  $("page-overview").hidden = health;
+  $("page-health").hidden = !health;
+  $("tab-overview").setAttribute("aria-selected", String(!health));
+  $("tab-health").setAttribute("aria-selected", String(health));
+  if (location.hash !== (health ? "#health" : "#overview")) history.replaceState(null, "", health ? "#health" : "#overview");
+}
+$("tab-overview").onclick = () => showTab("overview");
+$("tab-health").onclick = () => showTab("health");
+showTab(location.hash === "#health" ? "health" : "overview");
+
+/* ---------- drawing ---------- */
+function setLink(state, text) {
+  $("link-dot").className = "dot " + state;
+  $("link-text").textContent = text;
+}
+
+function notice(text, bad) {
+  const n = $("notice");
+  n.hidden = !text;
+  n.textContent = text || "";
+  n.className = "notice" + (bad ? " bad" : "");
+}
+
+function drawOverview(d) {
+  const s = d.session;
+  if (!s) {
+    $("now-word").textContent = "No sessions yet";
+    $("now-word").style.removeProperty("--act");
+    $("now-sub").textContent = "Turn on the watch. Its first activity appears here a few seconds after the link turns green.";
+    ["ribbon", "split", "legend", "bars", "bar-names", "changes"].forEach((id) => ($(id).innerHTML = ""));
+    $("ribbon-start").textContent = $("ribbon-end").textContent = "";
+    $("active-min").textContent = $("length-min").textContent = "–";
+    $("active-note").textContent = $("length-note").textContent = "";
+    return;
+  }
+  const act = d.current_activity;
+  $("now-word").textContent = NAMES[act] || "—";
+  $("now-word").style.setProperty("--act", VAR[act] || "var(--ink)");
+  if (d.in_progress) {
+    $("now-sub").innerHTML = d.current_since
+      ? "For <strong>" + esc(duration(d.server_time - d.current_since)) + "</strong>, in a session that started at " + esc(dayTime(s.start)) + "."
+      : "Session started at " + esc(dayTime(s.start)) + ".";
+  } else {
+    $("now-sub").innerHTML = "Last activity of the session that ended at <strong>" + esc(dayTime(s.end)) + "</strong>.";
+  }
+
+  // ribbon: the whole session, each stretch as wide as it lasted
+  const total = Math.max(1, s.end - s.start);
+  $("ribbon").innerHTML = d.timeline.map(([a, b, x]) =>
+    '<span style="flex:' + Math.max(b - a, total / 400).toFixed(1) + ';background:' + VAR[x] +
+    '" title="' + esc(NAMES[x] + ", " + hhmm(a) + "–" + hhmm(b) + " (" + duration(b - a) + ")") + '"></span>').join("");
+  $("ribbon-start").textContent = hhmm(s.start);
+  $("ribbon-end").textContent = d.in_progress ? "now" : hhmm(s.end);
+
+  $("active-min").innerHTML = esc(mins(d.active_min)) + "<small>min</small>";
+  const n = $("active-note");
+  if (d.prev_active_min === null) { n.textContent = "First session"; n.className = "fig-note"; }
+  else {
+    const diff = d.active_min - d.prev_active_min;
+    n.textContent = (diff >= 0 ? "+" : "−") + Math.abs(diff).toFixed(1) + " min compared with last session";
+    n.className = "fig-note " + (diff > 0.05 ? "up" : diff < -0.05 ? "down" : "");
+  }
+  $("length-min").innerHTML = esc(mins(s.length_min)) + "<small>min</small>";
+  $("length-note").textContent = d.in_progress ? "Still going" : "Ended " + dayTime(s.end);
+
+  const split = d.by_activity_min, sum = ORDER.reduce((t, k) => t + (split[k] || 0), 0) || 1;
+  $("split").innerHTML = ORDER.map((k) => '<span style="flex:' + (split[k] || 0) + ';background:' + VAR[k] + '"></span>').join("");
+  $("legend").innerHTML = ORDER.map((k) => '<span><i style="background:' + VAR[k] + '"></i>' + NAMES[k] + " " +
+    mins(split[k] || 0) + " min</span>").join("");
+  $("split").setAttribute("aria-label", ORDER.map((k) => NAMES[k] + " " + Math.round(100 * (split[k] || 0) / sum) + "%").join(", "));
+
+  // sessions
+  const ss = d.sessions, top = Math.max(1, ...ss.map((x) => x.active_min));
+  $("bars").innerHTML = ss.map((x, i) => '<div class="bar' + (i === ss.length - 1 ? " current" : "") + '">' +
+    "<b>" + esc(mins(x.active_min)) + '</b><span style="height:' + Math.max(2, 140 * x.active_min / top).toFixed(0) +
+    'px" title="' + esc(dayTime(x.start) + ": " + mins(x.active_min) + " active min of " + mins(x.length_min)) + '"></span></div>').join("");
+  $("bar-names").innerHTML = ss.map((x) => "<span>" + esc(dayLabel(x.start)) + "</span>").join("");
+
+  $("changes").innerHTML = d.recent_changes.length
+    ? d.recent_changes.map((c) => "<li><time>" + esc(hhmm(c.ts)) + '</time><i style="background:' + VAR[c.activity] + '"></i>' +
+        esc(NAMES[c.activity]) + '<span class="src">' + esc(c.sensors || "") + "</span></li>").join("")
+    : '<li class="empty">No changes yet in this session.</li>';
+}
+
+function drawHealth(d) {
+  $("h-sensors").textContent = d.sensors || "–";
+  if (d.last_delay_s === null) { $("h-delay").textContent = "–"; $("h-delay-bar").style.width = "0"; }
+  else {
+    $("h-delay").innerHTML = esc(d.last_delay_s.toFixed(1)) + "<small>s</small>";
+    const bar = $("h-delay-bar");
+    bar.style.width = Math.min(100, 10 * d.last_delay_s) + "%";
+    bar.style.background = d.last_delay_s > 10 ? "var(--bad)" : d.last_delay_s > 5 ? "var(--warn)" : "var(--ok)";
+  }
+  $("h-link").textContent = d.link_ok ? "OK" : "No signal";
+  $("h-link").style.color = d.link_ok ? "var(--ok)" : "var(--bad)";
+  $("h-heard").textContent = d.last_heard_s === null ? "Nothing received yet" : "Last message " + duration(d.last_heard_s) + " ago";
+  $("h-retries").textContent = d.retried_msgs;
+  $("h-retries-note").textContent = "of " + d.total_events + " messages in the last " + d.history_days + " days";
+  $("log").innerHTML = d.log.length
+    ? d.log.map((e) => "<tr><td>" + esc(hhmmss(e.ts)) + "</td><td>" + esc(e.type.replace("_", " ")) + "</td><td>" +
+        esc(NAMES[e.activity] || "") + "</td><td>" + esc(e.sensors || "") + '</td><td class="num' + (e.delay_s > 10 ? " late" : "") + '">' +
+        esc(e.delay_s.toFixed(2)) + ' s</td><td class="num">' + esc(e.retries) + "</td></tr>").join("")
+    : '<tr><td colspan="6" class="empty">No messages yet.</td></tr>';
+}
+
+/* ---------- polling ---------- */
+let timer = null, failures = 0;
+async function poll() {
+  clearTimeout(timer);
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 4000);
+  try {
+    const r = await fetch("/api/summary", { signal: ctl.signal, cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    failures = 0;
+    if (!d.session) setLink("", "No data from the watch yet");
+    else if (d.link_ok) setLink("ok", "Watch connected");
+    else setLink("warn", "No signal from the watch for " + duration(d.last_heard_s));
+    notice(d.session && !d.in_progress ? "No session in progress. Showing the last session." : "");
+    drawOverview(d);
+    drawHealth(d);
+  } catch (e) {
+    failures++;
+    setLink("bad", "Can't reach the Pi");
+    if (failures >= 2) notice("The dashboard can't reach the receiver on the Pi. Check that the Pi is on and on the same Wi-Fi; the page keeps trying.", true);
+  } finally {
+    clearTimeout(t);
+    if (!document.hidden) timer = setTimeout(poll, failures ? Math.min(15000, POLL_MS * (failures + 1)) : POLL_MS);
+  }
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); else clearTimeout(timer); });
+poll();
+</script>
+</body>
+</html>

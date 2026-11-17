@@ -1,0 +1,20 @@
+C6 - the trained classifier fits in the watch's memory (REQ-AC-06, inspection)
+Random forest: 10 trees, max depth 6, 654 nodes in total (322 splits + 332 leaves), stored as
+if/else code in activity_model.h (compiled into the program, so it lives in program storage).
+Features: 10. Training windows: 8994 (1.5 s, 40 Hz), subjects: 9. Model id: 0xED69B0BC.
+
+Measured, Nov 15, 2026 (Arduino IDE, ESP32S3 Dev Module, Flash 32MB, OPI PSRAM, full
+ActivityClassifier sketch: model + features + screen + SD + Wi-Fi/MQTT link):
+
+Compile 1, default partition scheme (1.25 MB for the program):
+  Sketch uses 1075030 bytes (82%) of program storage space. Maximum is 1310720 bytes.
+  Global variables use 72888 bytes (22%) of dynamic memory, leaving 254792 bytes. Maximum is 327680 bytes.
+  -> fits, but the program-storage margin was small. The limit came from the default
+     partition scheme (made for 4 MB boards), not from the watch's 32 MB flash.
+Change: Tools > Partition Scheme set to a 32 MB scheme; re-compiled and uploaded.
+Compile 2, 32 MB partition scheme:
+  Sketch uses 1075030 bytes (3%) of program storage space. Maximum is 33423360 bytes.
+  Global variables use 72888 bytes (22%) of dynamic memory, leaving 254792 bytes. Maximum is 327680 bytes.
+
+Note: the program size did not change (1075030 bytes); only the space allowed for it did.
+The model itself needs almost no RAM at run time (10 feature values and 3 class scores).

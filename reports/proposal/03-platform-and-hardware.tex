@@ -1,0 +1,45 @@
+\section{Platform and Custom Hardware}
+\label{sec:platform}
+
+The watch limits this project depends on:
+\begin{itemize}
+\item \textbf{C1}, memory: 512\,KB SRAM, 8\,MB PSRAM, 32\,MB flash,
+vendor wiki, constraint -- bounds the size of the trained
+on-device classifier.
+\item \textbf{C2}, wireless: 2.4\,GHz Wi-Fi (802.11\,b/g/n), vendor
+wiki, constraint -- the link this project reports over and
+degrades for testing. (The product page also lists 802.11ax; the
+wiki figure is used here as the more detailed of the two sources.)
+\item \textbf{C3}, sensing: 6-axis IMU (accelerometer + gyroscope),
+vendor wiki, constraint -- source of the watch's own wrist motion
+data.
+\item \textbf{C4}, power: 400\,mAh Li-ion battery, 3.7\,V nominal,
+vendor wiki (battery as supplied), constraint -- bounds how often
+the board and watch can transmit.
+\end{itemize}
+
+The custom hardware is a low-fidelity prototype: an off-the-shelf
+microcontroller board with its own Wi-Fi radio, carrying one or two
+tethered inertial sensor modules (chest and/or thigh), wired to the
+board over I2C. The board does what the watch cannot: sense motion
+away from the wrist. It connects to the watch wirelessly, the same
+way it connects to the companion computer, rather than through the
+watch's I2C/UART/USB expansion pads, which this design does not use.
+This wireless link is the interface this project depends on, and
+is stated as a numbered requirement in Section~\ref{sec:reqs}.
+
+The board extracts motion features (for example, magnitude and
+cadence) from its chest and/or thigh sensors and sends them to the
+watch. The watch extracts features from its own wrist IMU, aligns
+the board's features to its own by timestamp, and combines them
+into one classification of sedentary, walking or running. If a
+board stream is missing, the watch classifies on the features it
+still has, down to wrist alone, and tags each report with which
+sensors produced it.
+
+In Project II, the breadboard/perfboard prototype is replaced by
+one custom PCB: a carrier board that the microcontroller board
+plugs into, adding battery charging, a power switch and connectors
+for the tethered chest and/or thigh sensors. The PoC in
+Section~\ref{sec:poc} is run on the low-fidelity prototype, so its
+results do not depend on the PCB being ready.

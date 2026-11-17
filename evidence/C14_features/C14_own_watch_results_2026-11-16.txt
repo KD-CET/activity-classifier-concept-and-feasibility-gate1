@@ -1,0 +1,31 @@
+C14 - motion features separate sedentary, walking and running (own watch, Nov 16, 2026)
+Data: Serial Monitor log from the watch (ActivityClassifier, model 0xED69B0BC), one line per
+1.5 s window: c14_serial_2026-11-16.txt. One wearer, watch on the wrist, sit ~1 min, walk
+~1 min, run/jog ~1 min.
+Windows 2-8 are missing (Serial Monitor opened late); window 1 is cut off; not used.
+How the windows were split (no clock times recorded): by the visible change in the data,
+leaving out the windows at each change:
+  sitting  windows  9-53 (45 windows)   left out 54-55 (standing up)
+  walking  windows 56-90 (35 windows)   left out 91-92 (starting to run)
+  running  windows 93-133 (41 windows)
+Pass criterion (written before): in at least one feature, the middle 80 % (10th-90th
+percentile) of each activity does not overlap with the other two.
+
+Middle 80 % of each feature                 sitting           walking           running      separate?
+  acc_mean (g)                            1.000-1.022       1.040-1.119       1.144-1.711      yes
+  acc_std (g)                             0.001-0.039       0.143-0.226       0.823-1.226      yes
+  acc_min (g)                             0.932-1.014       0.646-0.781       0.154-0.517      yes
+  acc_max (g)                             1.018-1.120       1.288-1.519       3.151-5.137      yes
+  acc_jerk (g/sample)                     0.001-0.014       0.033-0.060       0.225-0.474      yes
+  gyro_mean (deg/s)                         1.1-22.9         84.2-115.5       176.9-276.9      yes
+  gyro_std (deg/s)                          0.3-13.1         42.4-59.7         79.0-123.5      yes
+  gyro_max (deg/s)                          2.2-55.1        158.3-229.7       327.2-475.7      yes
+  cadence_hz (Hz)                          1.16-3.78         1.09-2.03         1.88-2.34       NO (all overlap)
+  cadence_power                           0.019-0.087       0.111-0.169       0.132-0.185      NO (walk/run overlap)
+Result: 8 of 10 features separate all three activities -> PASS.
+Finding: the step-rhythm features (cadence) do not separate walking from running on the
+wrist here; the size of the movement (spread, jerk, rotation speed) does. Same as on PAMAP2.
+Labels the watch gave in these windows (raw / shown): sitting 45/45 / 45/45, walking 31/35 /
+33/35, running 37/41 / 34/41 (the shown label lags ~4.5-10 s after the change, as in C1).
+Limits: one wearer, one short session; jogging on the spot, not outdoors.
+Figure: C14_features_own_watch_2026-11-16.png

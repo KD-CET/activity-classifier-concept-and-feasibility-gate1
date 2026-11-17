@@ -1,0 +1,194 @@
+HOW TO RUN EVERYTHING - Activity Tracker (Project I, 247-519-VA)
+=================================================================
+Kenneth Dialogo. Written November 13, 2026.
+
+WHAT RUNS WHERE
+  Watch (Waveshare ESP32-S3)  classifies sedentary / walking / running ON THE WATCH, every 1.5 s,
+                              and sends each change of activity over MQTT.
+  Raspberry Pi Zero 2 W       Mosquitto (the MQTT broker), mqtt_receiver.py (acks the watch and
+                              stores the reports), Node-RED (the dashboard). Starts by itself.
+  Phone or laptop             only to LOOK at the dashboard in a browser.
+  Phone hotspot               the Wi-Fi everything joins (with mobile data on).
+
+  watch --MQTT--> Pi: Mosquitto --> mqtt_receiver.py --> database
+                                         |
+                                         +--> activity/summary --> Node-RED dashboard
+  Dashboard:         http://<pi-address>:1880/dashboard
+  Backup dashboard:  http://<pi-address>:8000
+
+FOLDERS USED BELOW (inside activity-classifier)
+  firmware\ActivityClassifier   the watch program (6 files)
+  firmware\sd_card\replay.bin   test file for the watch's SD card (optional)
+  server                           everything that goes on the Pi
+In the commands, replace  kenneth  with your Pi username and  192.168.43.77  with your Pi's address.
+
+
+=====================================================================
+PART A - ONE-TIME SETUP
+=====================================================================
+
+A1. Phone hotspot
+  * Turn on the hotspot WITH mobile data (the Pi needs internet to install; the watch needs it
+    once per start to set its clock).
+  * Make it 2.4 GHz (the Pi Zero 2 W and the watch cannot use 5 GHz). iPhone: Settings >
+    Personal Hotspot > turn on "Maximize Compatibility". Android: hotspot band = 2.4 GHz.
+  * Note the hotspot name and password exactly (capitals and spaces matter).
+
+A2. Prepare the Pi's SD card (on the laptop)
+  1. Install "Raspberry Pi Imager" from raspberrypi.com/software.
+  2. Choose Device: Raspberry Pi Zero 2 W.
+     Choose OS: Raspberry Pi OS (other) > Raspberry Pi OS Lite (64-bit).
+     Choose Storage: your SD card.
+  3. When asked to apply settings, choose "Edit settings":
+       General:   hostname  activity-pi
+                  username  kenneth   password  (pick one, remember it)
+                  Wireless LAN: your hotspot name + password, country CA
+                  Locale: time zone America/Toronto
+       Services:  Enable SSH > Use password authentication
+  4. Save, Yes, write the card. Put it in the Pi and plug in power. Wait about 2 minutes.
+
+A3. Log in to the Pi and copy the project (laptop on the same hotspot, Command Prompt)
+  1. Go to the folder that CONTAINS server:
+         cd %USERPROFILE%\Downloads\activity-classifier
+  2. Copy the folder to the Pi (type the Pi password when asked; type "yes" the first time):
+         scp -r server kenneth@activity-pi.local:~/
+  3. Log in:
+         ssh kenneth@activity-pi.local
+     If "activity-pi.local" is not found: look up the Pi's address in your phone's hotspot
+     list of connected devices and use it instead, e.g.  ssh kenneth@192.168.43.77
+
+A4. Install everything on the Pi (in the SSH window)
+         cd ~/server
+         bash pi/setup_pi_mqtt.sh
+  * Answer "y" to the Node-RED installer's questions.
+  * Takes 20-40 minutes. Leave the hotspot on.
+  * At the end it prints:
+        Node-RED dashboard:   http://192.168.43.77:1880/dashboard
+        Watch link_config.h:  LINK_USE_MQTT 1, LINK_HOST "192.168.43.77", MQTT_PORT 1883
+    WRITE DOWN THE ADDRESS.
+  * Check it is running:
+         systemctl status activity-mqtt-receiver      (should say "active (running)"; q to quit)
+
+A5. Set up the watch program (laptop, Arduino IDE)
+  1. Libraries (Tools > Manage Libraries), install if missing:
+       "GFX Library for Arduino" by moononournation
+       "PubSubClient" by Nick O'Leary
+  2. Open firmware\ActivityClassifier\ActivityClassifier.ino.
+     The folder must have 6 files: ActivityClassifier.ino, activity_features.h, activity_model.h,
+     activity_replay.h, activity_link.h, link_config.h.
+  3. Click the link_config.h tab and change ONLY these lines:
+         #define WIFI_SSID "your-hotspot-name"
+         #define WIFI_PASS "your-hotspot-password"
+         #define LINK_USE_MQTT 1
+         #define LINK_HOST "192.168.43.77"
+  4. Tools settings: Board "ESP32S3 Dev Module", USB CDC On Boot: Enabled, Flash Size 32MB,
+     PSRAM: OPI PSRAM.
+  5. Plug in the watch, pick its port (Tools > Port), click Upload.
+     If the upload fails: power the watch off, hold BOOT while powering it on, upload again,
+     then power-cycle it.
+
+A6. (Optional) Replay test file
+  Copy firmware\sd_card\replay.bin to the root of the watch's SD card (FAT32).
+  Insert the card BEFORE powering the watch on.
+
+
+=====================================================================
+PART B - EVERY TIME YOU USE IT
+=====================================================================
+  1. Turn on the phone hotspot (mobile data on).
+  2. Power on the Pi. Wait 1-2 minutes (Mosquitto, the receiver and Node-RED start by themselves).
+  3. Turn on the watch. Watch the bottom line of its screen:
+       amber "MQTT no Wi-Fi"        joining the hotspot
+       amber "MQTT setting clock"   getting the time from the internet
+       amber "MQTT no server"       Wi-Fi OK but cannot reach the Pi
+       green "MQTT link ok | queued 0"   working
+  4. Open the dashboard on the laptop or phone (on the same hotspot):
+         http://192.168.43.77:1880/dashboard
+     Pages (menu at the top left): Overview and System health.
+     Backup dashboard: http://192.168.43.77:8000
+  5. Wear the watch and move. The dashboard follows within a few seconds of the watch's label
+     changing (the watch waits for 3 agreeing windows, about 4.5 s, before changing its label).
+  6. Watch buttons: tap BOOT = switch LIVE / REPLAY screen.
+                    hold BOOT 1 s on LIVE = end the session and start a new one.
+  7. When finished: turn the watch off, then shut the Pi down properly before unplugging:
+         ssh kenneth@192.168.43.77
+         sudo poweroff
+     (Wait until the Pi's green light stops blinking, then unplug.)
+
+
+=====================================================================
+PART C - TRY IT ON THE LAPTOP ONLY (before you have the Pi)
+=====================================================================
+The laptop plays the Pi's role. Use 4 Command Prompt windows, each starting with:
+         cd %USERPROFILE%\Downloads\activity-classifier\server
+One time: install Mosquitto (mosquitto.org) and run  python -m pip install paho-mqtt
+Then, every time:
+  Window 1 (broker)     net stop mosquitto      (as administrator, only if the service runs)
+                        "C:\Program Files\mosquitto\mosquitto.exe" -c mosquitto\mosquitto_laptop.conf -v
+  Window 2 (receiver)   python mqtt_receiver.py
+  Window 3 (data)       python mqtt_simulator.py --change-every 10 --heartbeat 5
+                        (or the real watch with LINK_HOST = the laptop's IPv4 from  ipconfig)
+  Browser               http://127.0.0.1:8000        (built-in dashboard)
+  Node-RED (optional)   see server\nodered\NODERED_GUIDE.txt, Part 1
+For the real watch: laptop and watch on the same hotspot, allow Mosquitto through the Windows
+firewall (Private networks).
+
+
+=====================================================================
+PART D - HTTP BACKUP (if MQTT gives trouble)
+=====================================================================
+The Pi's receiver also accepts HTTP on port 8000, so the watch can switch without changing the Pi:
+  1. In link_config.h set  #define LINK_USE_MQTT 0  (keep the same LINK_HOST), upload.
+  2. The watch shows "HTTP link ok". Use the backup dashboard: http://192.168.43.77:8000
+     (Node-RED keeps working too, because the receiver still publishes activity/summary.)
+
+
+=====================================================================
+PART E - TESTS TO RECORD IN THE LOGBOOK (date, conditions, result)
+=====================================================================
+  * Replay (extra for C6): watch REPLAY screen > hold BOOT. Expect "100.0% same as Colab".
+    Copy /replay_results.csv from the SD card. Also note the "Sketch uses ... bytes" line that
+    Arduino IDE prints after compiling.
+  * Live labels (C1): sit, walk, run about 1 minute each; note what the watch shows.
+    Serial Monitor (115200 baud) prints one line per window; save it.
+  * 30-minute session (C11): follow a written schedule; compare minute by minute.
+  * Outage (C5): while walking, turn the hotspot off for 60 s, then on. The watch's "queued"
+    count goes up, then back to 0. The dashboard's System health page shows the watch went
+    "Offline" (the broker's Last Will) and then all the reports, with their real times.
+  * Delay (C3): System health > "Last delivery delay" (target 10 s).
+  * Keep the data: copy the database from the Pi to the laptop:
+         scp kenneth@192.168.43.77:~/<folder>/server/dashboard.db .   (use the folder you copied it to, e.g. ~/Documents/activity-classifier)
+
+
+=====================================================================
+PART F - IF SOMETHING IS WRONG
+=====================================================================
+Watch stuck on "no server"      The Pi's address changed (hotspots do this). On the Pi run
+                                hostname -I , put the new address in LINK_HOST, upload again.
+Watch stuck on "setting clock"  The hotspot has no mobile data.
+Watch stuck on "no Wi-Fi"       Wrong name/password, or the hotspot is 5 GHz only.
+"activity-pi.local" not found   Use the Pi's address from the hotspot's device list.
+Dashboard page does not load    Pi still starting (wait 2 min), or laptop on a different Wi-Fi.
+Dashboard loads but is empty    On the Pi:  journalctl -u activity-mqtt-receiver -f
+                                You should see "watch1 is ONLINE" and lines "via MQTT".
+"Unknown node type ui-template" Node-RED is missing the Dashboard. On the Pi:
+                                cd ~/.node-red && npm install @flowfuse/node-red-dashboard
+                                sudo systemctl restart nodered
+Times on the dashboard are off  sudo timedatectl set-timezone America/Toronto
+                                sudo systemctl restart nodered
+See the raw MQTT messages       MQTT Explorer on the laptop: host = Pi's address, port 1883,
+                                expand activity > watch1.
+Restart everything on the Pi    sudo systemctl restart mosquitto activity-mqtt-receiver nodered
+
+USEFUL COMMANDS ON THE PI
+  journalctl -u activity-mqtt-receiver -f    reports arriving live (Ctrl+C to stop watching)
+  systemctl status nodered                   is Node-RED running?
+  hostname -I                                the Pi's address
+  top                                        memory and CPU (q to quit)
+  sudo poweroff                              shut down safely
+
+MORE DETAIL
+  server\nodered\NODERED_GUIDE.txt   Node-RED dashboard (laptop and Pi)
+  server\MQTT_GUIDE.txt              MQTT on the laptop, the watch link, topics
+  server\pi\PI_GUIDE.txt             HTTP-only version on the Pi
+  firmware\README.txt             watch programs and settings

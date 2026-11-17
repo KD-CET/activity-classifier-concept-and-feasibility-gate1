@@ -1,0 +1,10 @@
+model,true,pred_sedentary,pred_walking,pred_running
+"Random forest (10 trees, depth 6)",sedentary,6587,160,8
+"Random forest (10 trees, depth 6)",walking,76,1509,2
+"Random forest (10 trees, depth 6)",running,41,11,600
+Decision tree (depth 5),sedentary,6554,153,48
+Decision tree (depth 5),walking,156,1422,9
+Decision tree (depth 5),running,43,7,602
+Logistic regression (baseline),sedentary,6511,195,49
+Logistic regression (baseline),walking,46,1531,10
+Logistic regression (baseline),running,40,6,606

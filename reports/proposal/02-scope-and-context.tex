@@ -1,0 +1,79 @@
+\section{Scope and System Context}
+\label{sec:scope}
+
+Table~\ref{tab:scope} declares what this project will and will
+not do, in pairs; Fig.~\ref{fig:context} shows the system as a
+single block with the actors it exchanges information with.
+
+\begin{table}[h]
+\centering
+\caption{Project scope, declared in pairs.}
+\label{tab:scope}
+\begin{tabular}{p{3.7cm}p{3.7cm}}
+\toprule
+\textbf{In scope} & \textbf{Out of scope} \\
+\midrule
+Sense motion at the wrist (watch IMU) and at the chest and/or
+thigh (tethered IMUs on one custom board) &
+Other body positions, and sensors other than IMUs \\
+Fuse wrist, chest and/or thigh features to classify sedentary,
+walking or running, falling back to fewer sensors on dropout &
+Fall detection, and activity types beyond these three
+(including vehicles) \\
+Report each activity change to a companion computer over Wi-Fi,
+with retries after an outage &
+Bluetooth or cellular connectivity \\
+Computer-side logging and a simple progress view &
+Long-term cloud storage and multi-user accounts \\
+On-watch display of basic status &
+Enclosure design and battery-life optimisation \\
+Low-fidelity prototype: off-the-shelf modules on breadboard or
+perfboard &
+Fabricating the custom PCB (designed and built in Project II) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  sysb/.style={draw, thick, rectangle, minimum width=2.6cm, minimum height=1.1cm, align=center},
+  actor/.style={draw, ellipse, dashed, minimum width=2.1cm, minimum height=0.8cm, align=center, inner sep=1pt},
+  stake/.style={draw, ellipse, dotted, thick, minimum width=2.3cm, minimum height=0.8cm, align=center, inner sep=1pt, font=\scriptsize},
+  lbl/.style={font=\scriptsize, align=center},
+  >=stealth
+]
+\node[sysb] (sys) {Activity\\Monitoring System};
+\node[actor, above=1.3cm of sys] (wearer) {Wearer};
+\node[actor, right=2.0cm of sys] (wifi) {Wi-Fi\\Network};
+\node[actor, below=1.1cm of wifi] (pc) {Companion\\computer};
+\node[stake, below=1.1cm of sys] (family) {Family member /\\support person};
+\node[stake, below=0.8cm of pc] (employer) {Employer or insurer\\(wellness program)};
+
+\draw[->] ([xshift=-0.55cm]sys.north |- wearer.south) -- node[left, lbl] {motion (wrist,\\chest, thigh)} ([xshift=-0.55cm]sys.north);
+\draw[->] ([xshift=0.55cm]sys.north) -- node[right, lbl] {activity\\feedback} ([xshift=0.55cm]sys.north |- wearer.south);
+\draw[<->] (sys) -- node[above, lbl] {activity reports /} node[below, lbl] {acknowledgements} (wifi);
+\draw[<->] (wifi) -- node[right, lbl] {degraded or\\cut in testing} (pc);
+\draw[->, dotted, thick] (pc) -- node[above, lbl] {weekly trends} (family);
+\draw[->, dotted, thick] (pc) -- node[right, lbl] {aggregate \%\\only} (employer);
+\end{tikzpicture}
+\caption{Context diagram. The watch and custom hardware sit inside
+the single system boundary; the dashed ellipses are the actors
+behind each arrow, and every solid arrow crossing the boundary is
+something the project must build and defend. Only classified
+activity reports leave the system; raw sensor data does not.
+Dotted ellipses are the other stakeholders from the Project Idea
+Form; their views are not built in this PoC.}
+\label{fig:context}
+\end{figure}
+
+\textbf{Stakeholder collision:} the wearer wants feedback that
+feels current, with minimal personal effort (no manual logging,
+low battery drain), while the shared Wi-Fi network favours low,
+predictable traffic. Streaming sensor data or sending frequent
+updates would make the progress view feel more live, but would
+directly compete with keeping network load light. This collision
+is resolved in Section~\ref{sec:reqs} by sending a report only
+when the activity changes, within a stated time limit, rather than
+streaming continuously.

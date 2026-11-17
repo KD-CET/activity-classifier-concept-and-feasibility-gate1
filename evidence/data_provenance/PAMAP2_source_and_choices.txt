@@ -1,0 +1,38 @@
+Training data: PAMAP2 Physical Activity Monitoring (public dataset)
+Reference: A. Reiss and D. Stricker, "Introducing a New Benchmarked Dataset for Activity
+Monitoring," ISWC 2012. Dataset documents are in 6_PROJECT_DOCUMENTS/PAMAP2_dataset_docs.
+
+Why a public dataset
+  The project supervisor allowed outside datasets on the condition that the sensor placement and the
+  data collected match the inference system. The watch is worn on the wrist, so only PAMAP2's
+  wrist sensor is used.
+
+What was used
+  Sensor: the IMU over the wrist of the dominant arm (subject 108 left wrist, others right).
+          The +-16 g accelerometer (recommended by the dataset readme; the +-6 g one saturates
+          during running) and the gyroscope. Chest and ankle sensors are NOT used.
+  Subjects: all 9 (101-109). Subject 109 contributes sedentary data only.
+  Sessions: protocol and optional.
+  Classes:
+    sedentary = lying, sitting, standing, watching TV, computer work, car driving
+    walking   = walking
+    running   = running
+  Test only (never trained on): ascending/descending stairs, ironing, folding laundry,
+    vacuum cleaning, house cleaning.
+  Tried and rejected (Nov 11): ironing and folding laundry as sedentary. It made vacuuming,
+    house cleaning and going downstairs look mostly sedentary and raised the error to 5.1 %
+    (see C2_before_after_sedentary_versions.csv for the kept versions).
+  Not used: cycling, Nordic walking (poles), playing soccer, rope jumping, transient (id 0).
+  Rows where the wrist sensor dropped out (NaN) are removed.
+
+Conversion to match the watch (done in the notebook)
+  m/s^2 -> g, rad/s -> deg/s, 100 Hz -> 40 Hz (anti-alias resampling), 1.5 s windows.
+
+Reproducing the data
+  build_wrist.py turns the raw PAMAP2 .dat files into the CSVs in data.
+  dataset_summary_minutes.csv and dataset_minutes_by_activity.csv list what went in.
+
+Limitations
+  PAMAP2's sensor (Colibri IMU) is not the watch's sensor (QMI8658). Wrist placement matches,
+  but the same motion can read slightly differently, so the error on the watch must be checked
+  with recordings from the watch itself.

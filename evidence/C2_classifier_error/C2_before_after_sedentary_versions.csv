@@ -1,0 +1,4 @@
+dataset,subjects,windows,mean_error_pct,recall_sedentary_pct,recall_walking_pct,recall_running_pct
+1. protocol sedentary only,8,6009,4.06,97.0,94.8,92.3
+2. + TV and computer work,9,8631,3.46,97.7,94.7,92.2
+3. + car driving,9,8994,3.29,97.5,95.1,92.0

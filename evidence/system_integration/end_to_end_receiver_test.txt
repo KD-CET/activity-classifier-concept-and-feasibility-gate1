@@ -1,0 +1,22 @@
+End-to-end test of the dashboard back end (PC only, no watch)
+Date: November 11, 2026
+
+Setup
+  receiver.py running on port 8765 with a fresh SQLite database.
+  simulator.py acting as the watch:
+    --change-every 2 --heartbeat 1 --changes 6 --end
+    --loss 0.25     (25 % of sends never arrive)
+    --ackloss 0.2   (20 % arrive but the acknowledgement is lost, so the "watch" resends)
+
+Result
+  Events stored: 12 (session_start, 6 activity changes, heartbeats, session_end)
+  Duplicate resends rejected by the receiver: 6   (all ACKed, none stored twice)
+  Every stored seq number unique: yes
+  core/metrics.compute(): 1 session, closed by session_end; minutes split across
+  sedentary / walking / running; no double counting from the duplicates.
+
+What this shows
+  The receiver side of "no report lost or counted twice" works under simulated loss.
+What it does NOT show
+  It does not test the watch's radio or the watch's resend code (WatchReporter), so it is
+  not evidence for C3-C5 on its own. Those need the watch sending over a degraded link.

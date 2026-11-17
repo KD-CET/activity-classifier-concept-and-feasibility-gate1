@@ -1,0 +1,76 @@
+RUNNING THE RECEIVER + DASHBOARD ON THE RASPBERRY PI ZERO 2 W
+==============================================================
+
+The Pi does both jobs with ONE small program, receiver.py:
+  * receives the watch's reports (HTTP, port 8000) and stores them, and
+  * serves the dashboard website at  http://<pi-address>:8000
+It uses only the Python that comes with Raspberry Pi OS. Nothing to install, no Streamlit.
+
+Why it doesn't lag: the Pi works out the dashboard numbers once (keeping the last 7 days in
+memory and reading only new rows from the database), then sends each browser a small summary
+of about 1-10 KB every 3 seconds. The browser draws the page and charts, not the Pi. The page
+stops asking while its tab is hidden, and several viewers share the same summary.
+
+
+STEP 1 - PREPARE THE SD CARD (on your laptop)
+  1. Install "Raspberry Pi Imager" (raspberrypi.com/software).
+  2. Device: Raspberry Pi Zero 2 W.  OS: Raspberry Pi OS (other) > Raspberry Pi OS Lite
+     (64-bit or 32-bit both work; Lite has no desktop, which leaves more memory free).
+  3. In the settings (gear / "Edit settings"):
+       hostname       activity-pi
+       username       kenneth (any name) + a password
+       Wi-Fi          your hotspot or Wi-Fi name and password (2.4 GHz)
+       Services tab   Enable SSH, password authentication
+  4. Write the card, put it in the Pi, power it on, wait ~2 minutes.
+
+STEP 2 - LOG IN FROM YOUR LAPTOP
+  Command Prompt:   ssh kenneth@activity-pi.local
+  (If "activity-pi.local" is not found, find the Pi's IP address in your hotspot's list of
+  connected devices or your router's page, and use  ssh kenneth@<that address>.)
+
+STEP 3 - COPY THE server FOLDER TO THE PI
+  From a NEW Command Prompt on the laptop, in the folder that CONTAINS server:
+      scp -r server kenneth@activity-pi.local:~/
+  The folder lands in /home/kenneth/server. (No spaces in the path.)
+
+STEP 4 - RUN THE SETUP (in the SSH window, on the Pi)
+      cd ~/server
+      bash pi/setup_pi.sh
+  It prints the dashboard address and what to put in the watch's link_config.h.
+  From now on it starts by itself whenever the Pi is powered on.
+
+STEP 5 - POINT THE WATCH AT THE PI
+  In the watch sketch, link_config.h:
+      #define LINK_USE_MQTT 0            (HTTP)
+      #define LINK_HOST "192.168.x.x"    (the address the setup printed)
+      #define HTTP_PORT 8000
+  plus the same Wi-Fi as the Pi. Upload. The watch's bottom line turns green: "HTTP link ok".
+
+STEP 6 - OPEN THE DASHBOARD
+  Any phone, tablet or laptop on the same Wi-Fi, in a browser:   http://192.168.x.x:8000
+  Two tabs: Overview (what you are doing now, the session ribbon, active minutes, sessions,
+  recent changes) and System health (delivery delay vs the 10 s target, link, retries, log).
+
+
+USEFUL COMMANDS ON THE PI (in the SSH window)
+  See reports arriving live:      journalctl -u activity-receiver -f       (Ctrl+C to stop watching)
+  Is it running?                  systemctl status activity-receiver
+  Restart it:                     sudo systemctl restart activity-receiver
+  Test without the watch:         python3 simulator.py --url http://localhost:8000/report --change-every 10
+  Memory and CPU use:             top        (look for python3; q to quit)
+  Pi's address:                   hostname -I
+  Shut down safely:               sudo poweroff       (before unplugging, to protect the SD card)
+
+UPDATING THE CODE LATER
+  Copy the changed files over with scp, then:   sudo systemctl restart activity-receiver
+  (Changes to web/index.html show up on the next browser refresh, no restart needed.)
+
+THINGS TO KNOW
+  * The Pi Zero 2 W only has 2.4 GHz Wi-Fi, like the watch.
+  * A phone hotspot can give the Pi a different address another day. If the watch says
+    "no server", check the address with  hostname -I  and update link_config.h.
+  * The watch needs internet once (to set its clock), so use a hotspot with mobile data.
+  * The data lives in ~/server/dashboard.db on the Pi. To keep it as evidence, copy it:
+        scp kenneth@activity-pi.local:~/server/dashboard.db .
+  * The dashboard shows the last 7 days (older data stays in dashboard.db). Change
+    HISTORY_DAYS in core/summary.py if you need more.

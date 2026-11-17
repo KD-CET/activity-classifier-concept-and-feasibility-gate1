@@ -1,0 +1,5 @@
+# Nothing is needed for the main way (receiver.py + web dashboard): it uses only standard Python.
+# Only for the optional alternatives:
+streamlit>=1.37   # optional Streamlit pages (app.py)
+pandas            # optional Streamlit pages
+paho-mqtt>=1.6    # optional MQTT path

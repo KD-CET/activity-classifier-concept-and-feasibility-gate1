@@ -1,0 +1,105 @@
+test_empty (tests.test_metrics.TestMetrics.test_empty) ... ok
+test_health_fields (tests.test_metrics.TestMetrics.test_health_fields) ... ok
+test_session_end_and_previous (tests.test_metrics.TestMetrics.test_session_end_and_previous) ... ok
+test_silence_starts_new_session (tests.test_metrics.TestMetrics.test_silence_starts_new_session) ... ok
+test_time_per_activity_open_session (tests.test_metrics.TestMetrics.test_time_per_activity_open_session) ... ok
+test_timeout_closes_session (tests.test_metrics.TestMetrics.test_timeout_closes_session) ... ok
+test_clean_session (tests.test_mqtt.TestEndToEnd.test_clean_session) ... MQTT connected to localhost:1883, listening on activity/+/report and /status
+09:51:55 watch1 is ONLINE
+connected to localhost:1883 as watch1
+09:51:55 session_start   sedentary seq=581516 retries=0 via MQTT
+sent session_start   sedentary seq=581516 retries=0
+09:51:55 heartbeat       -         seq=581517 retries=0 via MQTT
+sent heartbeat                 seq=581517 retries=0
+09:51:55 activity_change running   seq=581518 retries=0 via MQTT
+sent activity_change running   seq=581518 retries=0
+09:51:55 heartbeat       -         seq=581519 retries=0 via MQTT
+sent heartbeat                 seq=581519 retries=0
+09:51:56 activity_change walking   seq=581520 retries=0 via MQTT
+sent activity_change walking   seq=581520 retries=0
+09:51:56 heartbeat       -         seq=581521 retries=0 via MQTT
+sent heartbeat                 seq=581521 retries=0
+09:51:56 activity_change sedentary seq=581522 retries=0 via MQTT
+sent activity_change sedentary seq=581522 retries=0
+09:51:56 session_end     -         seq=581523 retries=0 via MQTT
+sent session_end               seq=581523 retries=0
+09:51:56 watch1 is OFFLINE
+done: 8 delivered, 0 resends, 0 duplicates rejected, 0 gave up
+ok
+test_last_will (tests.test_mqtt.TestEndToEnd.test_last_will) ... MQTT connected to localhost:1883, listening on activity/+/report and /status
+09:51:56 watch1 is ONLINE
+09:51:56 watch1 is OFFLINE
+ok
+test_lossy_link_no_loss_no_double_count (tests.test_mqtt.TestEndToEnd.test_lossy_link_no_loss_no_double_count) ... MQTT connected to localhost:1883, listening on activity/+/report and /status
+09:51:56 watch1 is ONLINE
+connected to localhost:1883 as watch1
+  (simulated lost ack for seq=581517)
+09:51:56 session_start   sedentary seq=581517 retries=0 via MQTT
+  (simulated lost ack for seq=581517)
+09:51:56 session_start   sedentary seq=581517 retries=1 via MQTT DUPLICATE
+09:51:56 session_start   sedentary seq=581517 retries=2 via MQTT DUPLICATE
+sent session_start   sedentary seq=581517 retries=2 (receiver already had it)
+  attempt 0: simulated loss (never published)
+  (simulated lost ack for seq=581518)
+09:51:57 heartbeat       -         seq=581518 retries=1 via MQTT
+  (simulated lost ack for seq=581518)
+09:51:57 heartbeat       -         seq=581518 retries=2 via MQTT DUPLICATE
+  attempt 3: simulated loss (never published)
+09:51:57 heartbeat       -         seq=581518 retries=4 via MQTT DUPLICATE
+sent heartbeat                 seq=581518 retries=4 (receiver already had it)
+09:51:57 activity_change walking   seq=581519 retries=0 via MQTT
+sent activity_change walking   seq=581519 retries=0
+  (simulated lost ack for seq=581520)
+09:51:57 heartbeat       -         seq=581520 retries=0 via MQTT
+  (simulated lost ack for seq=581520)
+09:51:57 heartbeat       -         seq=581520 retries=1 via MQTT DUPLICATE
+  attempt 2: simulated loss (never published)
+  (simulated lost ack for seq=581520)
+09:51:57 heartbeat       -         seq=581520 retries=3 via MQTT DUPLICATE
+09:51:57 heartbeat       -         seq=581520 retries=4 via MQTT DUPLICATE
+sent heartbeat                 seq=581520 retries=4 (receiver already had it)
+09:51:58 activity_change running   seq=581521 retries=0 via MQTT
+sent activity_change running   seq=581521 retries=0
+  attempt 0: simulated loss (never published)
+  (simulated lost ack for seq=581522)
+09:51:58 heartbeat       -         seq=581522 retries=1 via MQTT
+  attempt 2: simulated loss (never published)
+09:51:58 heartbeat       -         seq=581522 retries=3 via MQTT DUPLICATE
+sent heartbeat                 seq=581522 retries=3 (receiver already had it)
+09:51:58 activity_change sedentary seq=581523 retries=0 via MQTT
+sent activity_change sedentary seq=581523 retries=0
+09:51:58 heartbeat       -         seq=581524 retries=0 via MQTT
+sent heartbeat                 seq=581524 retries=0
+  (simulated lost ack for seq=581525)
+09:51:59 activity_change running   seq=581525 retries=0 via MQTT
+  attempt 1: simulated loss (never published)
+  (simulated lost ack for seq=581525)
+09:51:59 activity_change running   seq=581525 retries=2 via MQTT DUPLICATE
+09:51:59 activity_change running   seq=581525 retries=3 via MQTT DUPLICATE
+sent activity_change running   seq=581525 retries=3 (receiver already had it)
+09:51:59 session_end     -         seq=581526 retries=0 via MQTT
+sent session_end               seq=581526 retries=0
+09:51:59 watch1 is OFFLINE
+done: 10 delivered, 16 resends, 5 duplicates rejected, 0 gave up
+ok
+test_bad_activity (tests.test_mqtt.TestHandleReport.test_bad_activity) ... ok
+test_invalid_json (tests.test_mqtt.TestHandleReport.test_invalid_json) ... ok
+test_status (tests.test_mqtt.TestHandleReport.test_status) ... ok
+test_topic_device_mismatch (tests.test_mqtt.TestHandleReport.test_topic_device_mismatch) ... ok
+test_valid_then_duplicate (tests.test_mqtt.TestHandleReport.test_valid_then_duplicate) ... ok
+test_summary_published_after_report (tests.test_mqtt.TestSummaryTopic.test_summary_published_after_report) ... MQTT connected to localhost:1883, listening on activity/+/report and /status
+09:51:59 watch1 is ONLINE
+09:51:59 session_start   walking   seq=500 retries=0 via MQTT
+ok
+test_gzip (tests.test_web.TestReceiverWeb.test_gzip) ... ok
+test_page_and_summary (tests.test_web.TestReceiverWeb.test_page_and_summary) ... 09:51:59 session_start   walking   seq=1 retries=0
+09:51:59 session_start   walking   seq=1 retries=0 DUPLICATE
+09:51:59 activity_change running   seq=2 retries=0
+ok
+test_empty (tests.test_web.TestSummary.test_empty) ... ok
+test_timeline_and_figures (tests.test_web.TestSummary.test_timeline_and_figures) ... ok
+
+----------------------------------------------------------------------
+Ran 19 tests in 4.909s
+
+OK

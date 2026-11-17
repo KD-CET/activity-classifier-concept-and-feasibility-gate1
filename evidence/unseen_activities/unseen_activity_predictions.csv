@@ -1,0 +1,7 @@
+activity,sedentary,walking,running,windows
+ascending_stairs,15.0,82.0,3.0,774
+descending_stairs,26.0,68.0,6.0,691
+folding_laundry,41.0,56.0,3.0,664
+house_cleaning,50.0,38.0,11.0,1245
+ironing,77.0,22.0,1.0,1587
+vacuum_cleaning,39.0,59.0,2.0,1163

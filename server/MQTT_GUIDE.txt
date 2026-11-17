@@ -1,0 +1,174 @@
+MQTT GUIDE - Activity Tracker dashboard
+=======================================
+
+THE PIECES
+  Watch  --MQTT-->  Mosquitto (the broker)  -->  mqtt_receiver.py  -->  SQLite  -->  Streamlit pages
+                                                      ^
+                          HTTP backup: the watch can also POST to mqtt_receiver.py on port 8000
+
+  * Mosquitto passes messages between the watch and the receiver. It runs on the Pi later,
+    and on your laptop for now. Nothing goes to the internet.
+  * mqtt_receiver.py checks each report, stores it (duplicates are never stored twice) and
+    sends an ack back to the watch. It ALSO serves the HTTP API the dashboard reads, and still
+    accepts HTTP reports, so HTTP is always there as a backup.
+  * The Streamlit pages (app.py, pages/health.py) did not change.
+
+
+TOPICS (device = watch1)
+  activity/watch1/report   watch -> receiver   one JSON report, QoS 1
+  activity/watch1/ack      receiver -> watch   {"ack": seq, "duplicate": false}  stored
+                                               {"nack": seq, "error": "..."}     rejected, do not resend
+  activity/watch1/status   "online" (retained) when the watch connects;
+                           "offline" published BY THE BROKER (Last Will) if the watch drops off
+
+REPORT FORMAT (the same JSON as the HTTP version)
+  {"device_id": "watch1", "seq": 1042, "type": "activity_change", "activity": "walking",
+   "ts": 1794577148.5, "sensors": "wrist", "retries": 0}
+  type     = session_start | session_end | heartbeat | activity_change
+  activity = sedentary | walking | running   (required for activity_change)
+  seq      = counts up by 1 per NEW message; a resend keeps the SAME seq
+  ts       = when it happened, watch clock (epoch seconds; sync the watch clock with NTP)
+
+
+PART 1 - TEST EVERYTHING ON YOUR LAPTOP NOW (no Pi, no watch needed)
+---------------------------------------------------------------------
+1. Install
+   * Python packages, in a terminal inside this folder:
+         pip install -r requirements.txt
+   * Mosquitto: download the installer from mosquitto.org (Download page) and install it.
+     On Windows it goes to C:\Program Files\mosquitto.
+
+2. Start the broker (terminal 1)
+   Windows: the installer may start a Mosquitto service that only accepts connections from the
+   laptop itself. Stop it first (Command Prompt as administrator):   net stop mosquitto
+   Then, from this folder:
+         "C:\Program Files\mosquitto\mosquitto.exe" -c mosquitto\mosquitto_laptop.conf -v
+   Mac/Linux:   mosquitto -c mosquitto/mosquitto_laptop.conf -v
+   Leave it open. -v prints every connection, so you can see the watch arrive later.
+
+3. Start the receiver (terminal 2)
+         python mqtt_receiver.py
+   Expect: "MQTT connected to localhost:1883, listening on activity/+/report and /status"
+
+4. Start the fake watch (terminal 3)
+         python mqtt_simulator.py --change-every 10 --heartbeat 5
+   The receiver prints a line for every report. Ctrl+C stops it.
+
+5. Open a dashboard (any of these)
+         http://127.0.0.1:8000                 the built-in web dashboard (nothing to install)
+         Node-RED dashboard                    see nodered/NODERED_GUIDE.txt
+         python -m streamlit run app.py        the older Streamlit pages (optional)
+
+6. Watch the traffic in a GUI (optional but useful)
+   * MQTT Explorer (free): new connection, host localhost, port 1883, Connect.
+     Open the activity > watch1 tree: report, ack and status update live.
+   * MQTTX (free): same connection; it can also PUBLISH test messages by hand. Paste the report
+     format above into activity/watch1/report and watch the ack come back.
+
+7. Try a bad link with the fake watch
+         python mqtt_simulator.py --loss 0.3 --ackloss 0.2 --changes 6 --end
+   Resends appear; the summary line should say "0 gave up", and the dashboard shows no doubles.
+         python mqtt_simulator.py --drop-after 20
+   After 20 s it vanishes without saying goodbye; the receiver prints "watch1 is OFFLINE"
+   (that line comes from the broker's Last Will, not from the simulator).
+
+
+PART 2 - CONNECT THE REAL WATCH TO YOUR LAPTOP
+----------------------------------------------
+The watch program (firmware/ActivityClassifier) already contains the MQTT sender.
+Do Part 1 first, so you know the broker and receiver work.
+
+1. Put the laptop and the watch on the SAME Wi-Fi. School and public Wi-Fi often stop devices
+   from talking to each other; if the watch cannot connect, use your phone's hotspot for both.
+2. Find the laptop's address. Windows: run  ipconfig  and read "IPv4 Address" under Wi-Fi
+   (for example 192.168.43.120). Mac: System Settings > Wi-Fi > Details.
+3. Let Mosquitto through the firewall. Windows asks the first time it starts: allow it on
+   Private networks. If it never asked: Windows Defender Firewall > Allow an app > mosquitto.exe.
+   Make sure the hotspot or Wi-Fi is set as a Private network.
+4. Check from the laptop first, using the address instead of localhost:
+         python mqtt_simulator.py --host 192.168.43.120
+   If this works, the broker accepts network connections.
+5. Set up the watch program:
+   a. Arduino IDE > Tools > Manage Libraries > search "PubSubClient" > install the one by
+      Nick O'Leary.
+   b. Open ActivityClassifier.ino and the link_config.h tab. Fill in:
+         WIFI_SSID / WIFI_PASS   your hotspot or Wi-Fi (must be 2.4 GHz; most phones allow
+                                 this under hotspot settings, e.g. "maximize compatibility")
+         LINK_HOST               the laptop's IPv4 address from step 2
+         LINK_USE_MQTT           1 (MQTT). Set 0 to use the HTTP backup instead.
+   c. Upload with your usual settings.
+6. What you should see
+   * Watch, bottom line of the live screen:
+       amber "MQTT no Wi-Fi"        joining the Wi-Fi
+       amber "MQTT setting clock"   getting the time from the internet (the hotspot needs data)
+       amber "MQTT no server"       Wi-Fi ok but cannot reach Mosquitto (address? firewall?)
+       green "MQTT link ok | queued 0"   reports are getting through
+   * mosquitto window: a new client "watch1-..." connects.
+   * mqtt_receiver.py window: "watch1 is ONLINE", then session_start, activity changes and a
+     heartbeat every 10 s, each marked "via MQTT".
+   * MQTT Explorer: activity > watch1 > report / ack / status updating.
+   * Dashboard: the current activity and minutes follow what the watch shows.
+7. Quick outage test: turn the hotspot off for a minute while walking around, then on again.
+   The watch shows "queued" counting up, then back to 0; the receiver prints the waiting
+   reports, each with the time it really happened; the broker announced "offline" meanwhile.
+
+What the watch sends
+   * session_start when the first activity appears, activity_change each time the SHOWN
+     (smoothed) activity changes, a heartbeat every 10 s while the link is up, and
+     session_end + session_start when you hold BOOT on the live screen (reset).
+   * Each report is resent with the same seq until acked (2 s timeout); up to 64 wait in the
+     watch's outbox during an outage.
+
+
+PART 3 - MOVE TO THE RASPBERRY PI LATER
+---------------------------------------
+On the Pi (Raspberry Pi OS), in a terminal:
+   sudo apt update
+   sudo apt install -y mosquitto mosquitto-clients python3-paho-mqtt
+   sudo cp mosquitto/activity.conf /etc/mosquitto/conf.d/activity.conf
+   sudo systemctl restart mosquitto        (starts by itself on every boot from now on)
+   hostname -I                             (the Pi's address, e.g. 192.168.43.77)
+Copy this whole folder to the Pi, then in it:
+   python3 mqtt_receiver.py
+Run Streamlit on your LAPTOP (the Pi Zero 2 W is short on memory for it):
+   Windows cmd:   set API_URL=http://192.168.43.77:8000
+                  streamlit run app.py
+   PowerShell:    $env:API_URL="http://192.168.43.77:8000"; streamlit run app.py
+Point the watch at the Pi's address instead of the laptop's. MQTT Explorer: host = Pi's address.
+
+
+IF MQTT IS NOT READY IN TIME (the HTTP backup)
+----------------------------------------------
+* mqtt_receiver.py already accepts HTTP reports: the watch can POST the same JSON to
+  http://<laptop-or-Pi-address>:8000/report and gets {"ack": seq, "duplicate": ...} back.
+* Without Mosquitto at all, run the original  python receiver.py  instead. The dashboard
+  works the same way with either receiver; they share the same database.
+
+
+DEGRADED-LINK TESTS FOR C4 / C5 (with the real watch)
+-----------------------------------------------------
+* Outage (C5): switch the hotspot off for 60 s, then back on. The watch must keep its reports
+  and send them all afterwards; the receiver's log and the dashboard should show none missing.
+  The broker prints the watch's Last Will ("offline") when it notices the drop.
+* Delay and loss (C4, 500 ms + 20 %): on the Pi (Linux) add them to the Wi-Fi interface:
+     sudo tc qdisc add dev wlan0 root netem delay 500ms loss 20%
+     sudo tc qdisc del dev wlan0 root          (removes it again)
+  On a Windows laptop, the free tool "clumsy" can add lag and drop packets in the same way.
+* The System health page shows each message's delay and how many needed a retry.
+  Record the settings and results in your logbook.
+
+
+TROUBLESHOOTING
+---------------
+"could not reach the broker"        Mosquitto is not running, or wrong address/port.
+Watch stuck on "setting clock"      The Wi-Fi has no internet. Use a hotspot with mobile data.
+Watch stuck on "no Wi-Fi"           Wrong name/password, or a 5 GHz-only network.
+Watch stuck on "no server"          LINK_HOST wrong, Mosquitto started without the config, or
+                                    the firewall blocks port 1883 (check with Part 2 step 4).
+Works with localhost, not with the IP   Mosquitto started without the config (it only listens
+                                    to the laptop), or the firewall is blocking port 1883.
+"Only one usage of each socket address"  The Mosquitto Windows service is still running:
+                                    net stop mosquitto  (as administrator).
+Receiver says REJECTED              The message failed a check; the reason is printed, and
+                                    the watch gets a "nack" with the same reason.
+Dashboard: "Cannot reach the receiver"   mqtt_receiver.py is not running, or API_URL is wrong.

@@ -1,0 +1,18 @@
+# local data and outputs
+*.db
+*.db-journal
+session_score_*.csv
+link_check_*.csv
+data/raw/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+# LaTeX build files
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+# your own Wi-Fi password: keep a private copy, see README
+link_config.local.h

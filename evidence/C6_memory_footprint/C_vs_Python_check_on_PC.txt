@@ -1,0 +1,21 @@
+Check: does the C code that runs on the watch give the same answers as the Python model?
+Date: November 11, 2026        Where: PC (gcc), NOT yet on the watch
+
+Method
+  1. The notebook exported the trained random forest to C (activity_model.h, model id 0xED69B0BC).
+  2. The feature formulas were written in C (activity_features.h).
+  3. All 8,994 PAMAP2 windows (1.5 s, 40 Hz, g and deg/s) were run through the C code compiled
+     with gcc, and through the Python model, and the outputs compared.
+  4. The full watch sketch (ActivityClassifier.ino) was compiled on the PC with stand-in
+     Arduino libraries: replay mode was run against replay.bin, and the live path
+     (classifyLive, including the 3-window smoothing) was fed the same 8,994 windows.
+
+Result
+  Predictions: 8,994 of 8,994 identical (100 %).
+  Replay-mode accuracy against true labels: 97.44 %, same as Colab (97.44 %).
+  Smoothed labels from the watch code vs the notebook's smooth(): identical on 8,994 of 8,994.
+
+Important
+  The 97.4 % is on the 9 people the model was trained on, so it is NOT the error on new people.
+  The honest error is the leave-one-subject-out result in C2_classifier_error (mean 3.3 %).
+  The same replay must still be run ON THE WATCH (see TO_ADD_from_the_watch.txt).

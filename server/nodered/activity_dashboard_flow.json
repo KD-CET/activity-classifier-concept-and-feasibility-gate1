@@ -1,0 +1,409 @@
+[
+  {
+    "id": "at_tab",
+    "type": "tab",
+    "label": "Activity Tracker",
+    "disabled": false,
+    "info": "Shows the watch's activity. mqtt_receiver.py (on the same Pi) publishes everything the dashboard needs on the MQTT topic activity/summary; this flow only displays it.\nDashboard: http://<pi-address>:1880/dashboard"
+  },
+  {
+    "id": "at_note",
+    "type": "comment",
+    "z": "at_tab",
+    "name": "activity/summary  ->  4 sections (Overview + System health)",
+    "info": "The function nodes turn the summary into HTML; each ui-template shows one section.\nEdit the source in server/nodered/src and rebuild with build_flow.py.",
+    "x": 290,
+    "y": 60,
+    "wires": []
+  },
+  {
+    "id": "at_broker",
+    "type": "mqtt-broker",
+    "name": "Mosquitto on this Pi",
+    "broker": "localhost",
+    "port": "1883",
+    "clientid": "",
+    "autoConnect": true,
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "60",
+    "cleansession": true,
+    "autoUnsubscribe": true,
+    "birthTopic": "",
+    "birthQos": "0",
+    "birthPayload": "",
+    "birthMsg": {},
+    "closeTopic": "",
+    "closeQos": "0",
+    "closePayload": "",
+    "closeMsg": {},
+    "willTopic": "",
+    "willQos": "0",
+    "willPayload": "",
+    "willMsg": {},
+    "userProps": "",
+    "sessionExpiry": ""
+  },
+  {
+    "id": "at_in",
+    "type": "mqtt in",
+    "z": "at_tab",
+    "name": "activity/summary",
+    "topic": "activity/summary",
+    "qos": "0",
+    "datatype": "json",
+    "broker": "at_broker",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 130,
+    "y": 180,
+    "wires": [
+      [
+        "at_f_now",
+        "at_f_sessions",
+        "at_f_changes",
+        "at_f_health"
+      ]
+    ]
+  },
+  {
+    "id": "at_ui",
+    "type": "ui-base",
+    "name": "Activity Tracker",
+    "path": "/dashboard",
+    "includeClientData": true,
+    "acceptsClientConfig": [
+      "ui-notification",
+      "ui-control"
+    ],
+    "showPathInSidebar": false,
+    "showPageTitle": true,
+    "navigationStyle": "default",
+    "titleBarStyle": "default"
+  },
+  {
+    "id": "at_theme",
+    "type": "ui-theme",
+    "name": "Activity Tracker",
+    "colors": {
+      "surface": "#1c2433",
+      "primary": "#6d78e8",
+      "bgPage": "#eef1f6",
+      "groupBg": "#ffffff",
+      "groupOutline": "#d6dce6"
+    },
+    "sizes": {
+      "density": "default",
+      "pagePadding": "12px",
+      "groupGap": "12px",
+      "groupBorderRadius": "14px",
+      "widgetGap": "12px"
+    }
+  },
+  {
+    "id": "at_p_over",
+    "type": "ui-page",
+    "name": "Overview",
+    "ui": "at_ui",
+    "path": "/overview",
+    "icon": "run",
+    "layout": "grid",
+    "theme": "at_theme",
+    "breakpoints": [
+      {
+        "name": "Default",
+        "px": "0",
+        "cols": "3"
+      },
+      {
+        "name": "Tablet",
+        "px": "576",
+        "cols": "6"
+      },
+      {
+        "name": "Small Desktop",
+        "px": "768",
+        "cols": "9"
+      },
+      {
+        "name": "Desktop",
+        "px": "1024",
+        "cols": "12"
+      }
+    ],
+    "order": 1,
+    "className": "",
+    "visible": "true",
+    "disabled": "false"
+  },
+  {
+    "id": "at_p_health",
+    "type": "ui-page",
+    "name": "System health",
+    "ui": "at_ui",
+    "path": "/health",
+    "icon": "heart-pulse",
+    "layout": "grid",
+    "theme": "at_theme",
+    "breakpoints": [
+      {
+        "name": "Default",
+        "px": "0",
+        "cols": "3"
+      },
+      {
+        "name": "Tablet",
+        "px": "576",
+        "cols": "6"
+      },
+      {
+        "name": "Small Desktop",
+        "px": "768",
+        "cols": "9"
+      },
+      {
+        "name": "Desktop",
+        "px": "1024",
+        "cols": "12"
+      }
+    ],
+    "order": 2,
+    "className": "",
+    "visible": "true",
+    "disabled": "false"
+  },
+  {
+    "id": "at_g_now",
+    "type": "ui-group",
+    "name": "Right now",
+    "page": "at_p_over",
+    "width": "12",
+    "height": "1",
+    "order": 1,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false",
+    "groupType": "default"
+  },
+  {
+    "id": "at_f_now",
+    "type": "function",
+    "z": "at_tab",
+    "name": "Right now",
+    "func": "// ---- shared helpers (copied into each function node; function nodes cannot share code) ----\nconst NAMES = { sedentary: \"Sedentary\", walking: \"Walking\", running: \"Running\" };\nconst ORDER = [\"sedentary\", \"walking\", \"running\"];\nconst COLOR = { sedentary: \"#6d78e8\", walking: \"#1fa97a\", running: \"#f08a3c\" };\nconst esc = (v) => String(v === undefined || v === null ? \"\" : v)\n  .replace(/&/g, \"&amp;\").replace(/</g, \"&lt;\").replace(/>/g, \"&gt;\").replace(/\"/g, \"&quot;\");\nconst pad = (n) => (n < 10 ? \"0\" : \"\") + n;\n// times use the Pi's time zone (the setup script sets it)\nconst hhmm = (ts) => { const d = new Date(ts * 1000); return pad(d.getHours()) + \":\" + pad(d.getMinutes()); };\nconst hhmmss = (ts) => { const d = new Date(ts * 1000); return hhmm(ts) + \":\" + pad(d.getSeconds()); };\nconst MONTHS = [\"Jan\", \"Feb\", \"Mar\", \"Apr\", \"May\", \"Jun\", \"Jul\", \"Aug\", \"Sep\", \"Oct\", \"Nov\", \"Dec\"];\nconst sameDay = (a, b) => new Date(a * 1000).toDateString() === new Date(b * 1000).toDateString();\nconst dayLabel = (ts, now) => sameDay(ts, now) ? hhmm(ts)\n  : MONTHS[new Date(ts * 1000).getMonth()] + \" \" + new Date(ts * 1000).getDate();\nconst dayTime = (ts, now) => sameDay(ts, now) ? hhmm(ts) : dayLabel(ts, now) + \", \" + hhmm(ts);\nconst mins = (m) => (m < 10 ? m.toFixed(1) : String(Math.round(m)));\nconst duration = (s) => {\n  if (s < 60) return Math.max(0, Math.round(s)) + \" s\";\n  const m = Math.floor(s / 60);\n  return m < 60 ? m + \" min\" : Math.floor(m / 60) + \" h \" + (m % 60) + \" min\";\n};\n\n// ---- \"Right now\": current activity, link, session ribbon, figures ----\nconst s = msg.payload || {};\nconst now = s.server_time || Date.now() / 1000;\nconst sess = s.session;\nconst ws = s.watch_status;\nlet linkCls = \"off\", linkTxt = \"No data from the watch yet\";\nif (ws && ws.status === \"offline\") { linkCls = \"bad\"; linkTxt = \"Watch offline since \" + hhmm(ws.since) + \" (Last Will)\"; }\nelse if (sess && s.link_ok) { linkCls = \"ok\"; linkTxt = \"Watch connected\"; }\nelse if (sess) { linkCls = \"warn\"; linkTxt = \"No signal from the watch for \" + duration(s.last_heard_s || 0); }\nconst link = '<div class=\"at-link\"><i class=\"at-dot at-' + linkCls + '\"></i>' + esc(linkTxt) + \"</div>\";\n\nif (!sess) {\n  msg.payload = link + '<p class=\"at-word\">No sessions yet</p>' +\n    '<p class=\"at-sub\">Turn on the watch. Its first activity appears here a few seconds after its link turns green.</p>';\n  return msg;\n}\nconst act = s.current_activity;\nlet sub;\nif (s.in_progress && s.current_since) sub = \"For <b>\" + esc(duration(now - s.current_since)) + \"</b>, in a session that started at \" + esc(dayTime(sess.start, now)) + \".\";\nelse if (s.in_progress) sub = \"Session started at \" + esc(dayTime(sess.start, now)) + \".\";\nelse sub = \"No session in progress. This is the last activity of the session that ended at <b>\" + esc(dayTime(sess.end, now)) + \"</b>.\";\n\nconst total = Math.max(1, sess.end - sess.start);\nconst ribbon = (s.timeline || []).map(function (seg) {\n  const w = Math.max(seg[1] - seg[0], total / 400);\n  return '<span style=\"flex:' + w.toFixed(1) + \";background:\" + COLOR[seg[2]] + '\" title=\"' +\n    esc(NAMES[seg[2]] + \", \" + hhmm(seg[0]) + \"-\" + hhmm(seg[1]) + \" (\" + duration(seg[1] - seg[0]) + \")\") + '\"></span>';\n}).join(\"\");\n\nlet note = \"First session\", noteCls = \"\";\nif (s.prev_active_min !== null && s.prev_active_min !== undefined) {\n  const diff = s.active_min - s.prev_active_min;\n  note = (diff >= 0 ? \"+\" : \"-\") + Math.abs(diff).toFixed(1) + \" min compared with last session\";\n  noteCls = diff > 0.05 ? \" at-up\" : diff < -0.05 ? \" at-down\" : \"\";\n}\nconst split = s.by_activity_min || {};\nconst splitBar = ORDER.map((k) => '<span style=\"flex:' + (split[k] || 0) + \";background:\" + COLOR[k] + '\"></span>').join(\"\");\nconst legend = ORDER.map((k) => '<span><i style=\"background:' + COLOR[k] + '\"></i>' + NAMES[k] + \" \" + mins(split[k] || 0) + \" min</span>\").join(\"\");\n\nmsg.payload = link +\n  '<p class=\"at-word\" style=\"color:' + (COLOR[act] || \"#1c2433\") + '\">' + esc(NAMES[act] || \"-\") + \"</p>\" +\n  '<p class=\"at-sub\">' + sub + \"</p>\" +\n  '<div class=\"at-ribbon\">' + ribbon + \"</div>\" +\n  '<div class=\"at-ends\"><span>' + esc(hhmm(sess.start)) + \"</span><span>\" + (s.in_progress ? \"now\" : esc(hhmm(sess.end))) + \"</span></div>\" +\n  '<div class=\"at-figs\">' +\n    '<div><div class=\"at-label\">Active minutes this session</div><div class=\"at-value\">' + esc(mins(s.active_min)) + \"<small>min</small></div>\" +\n      '<div class=\"at-note' + noteCls + '\">' + esc(note) + \"</div></div>\" +\n    '<div><div class=\"at-label\">Session length</div><div class=\"at-value\">' + esc(mins(sess.length_min)) + \"<small>min</small></div>\" +\n      '<div class=\"at-note\">' + (s.in_progress ? \"Still going\" : \"Ended \" + esc(dayTime(sess.end, now))) + \"</div></div>\" +\n    '<div><div class=\"at-label\">Time in each activity</div><div class=\"at-split\">' + splitBar + '</div><div class=\"at-legend\">' + legend + \"</div></div>\" +\n  \"</div>\";\nreturn msg;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 120,
+    "wires": [
+      [
+        "at_t_now"
+      ]
+    ]
+  },
+  {
+    "id": "at_t_now",
+    "type": "ui-template",
+    "z": "at_tab",
+    "group": "at_g_now",
+    "page": "",
+    "ui": "",
+    "name": "Right now",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "head": "",
+    "format": "<template>\n  <div class=\"at\" v-html=\"msg?.payload || ''\"></div>\n</template>\n<style>\n.at { font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; color: #1c2433; font-variant-numeric: tabular-nums; line-height: 1.5; }\n.at p { margin: 0; }\n.at-link { display: flex; align-items: center; gap: 8px; font-size: .92rem; color: #5b6577; margin-bottom: 6px; }\n.at-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: #5b6577; }\n.at-ok { background: #1fa97a; } .at-warn { background: #c98a12; } .at-bad { background: #d64545; }\n.at-word { font: 800 clamp(2.4rem, 8vw, 4.4rem)/1.05 ui-rounded, \"SF Pro Rounded\", \"Segoe UI Variable Display\", \"Segoe UI\", system-ui, sans-serif; letter-spacing: -.03em; }\n.at-sub { color: #5b6577; margin: 8px 0 18px !important; }\n.at-sub b { color: #1c2433; font-weight: 600; }\n.at-ribbon { display: flex; gap: 2px; height: 44px; border-radius: 6px; overflow: hidden; background: #e3e8f0; }\n.at-ribbon span { min-width: 2px; }\n.at-ends { display: flex; justify-content: space-between; font-size: .85rem; color: #5b6577; margin-top: 6px; }\n.at-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 24px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #d6dce6; }\n.at-figs.at-four { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 0; padding-top: 0; border-top: 0; }\n.at-label { font-size: .88rem; color: #5b6577; }\n.at-value { font: 700 1.85rem/1.15 ui-rounded, \"SF Pro Rounded\", \"Segoe UI Variable Display\", \"Segoe UI\", system-ui, sans-serif; }\n.at-value small { font: 500 1rem system-ui, sans-serif; color: #5b6577; margin-left: 3px; }\n.at-note { font-size: .86rem; color: #5b6577; }\n.at-up { color: #1fa97a; } .at-down { color: #d64545; }\n.at-split { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #e3e8f0; margin: 10px 0 6px; }\n.at-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .86rem; color: #5b6577; }\n.at-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }\n.at-hint { font-size: .88rem; color: #5b6577; margin-bottom: 12px !important; }\n.at-bars { display: flex; align-items: flex-end; gap: 8px; height: 170px; border-bottom: 1px solid #d6dce6; }\n.at-bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }\n.at-bar b { font-size: .78rem; color: #5b6577; margin-bottom: 3px; }\n.at-bar span { width: 100%; max-width: 42px; background: #9bd8c3; border-radius: 4px 4px 0 0; }\n.at-cur span { background: #1fa97a; } .at-cur b { color: #1c2433; }\n.at-names { display: flex; gap: 8px; margin-top: 5px; }\n.at-names span { flex: 1; text-align: center; font-size: .74rem; color: #5b6577; white-space: nowrap; overflow: hidden; min-width: 0; }\n.at-changes { list-style: none; margin: 0; padding: 0; }\n.at-changes li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #d6dce6; }\n.at-changes li:last-child { border-bottom: 0; }\n.at-changes time { color: #5b6577; min-width: 3.2em; }\n.at-changes i { width: 10px; height: 10px; border-radius: 50%; flex: none; }\n.at-src { margin-left: auto; color: #5b6577; font-size: .84rem; }\n.at-meter { height: 8px; border-radius: 4px; background: #e3e8f0; margin-top: 8px; overflow: hidden; }\n.at-meter span { display: block; height: 100%; border-radius: 4px; }\n.at-tablewrap { overflow-x: auto; }\n.at-table { border-collapse: collapse; width: 100%; font-size: .92rem; }\n.at-table th { text-align: left; font-weight: 600; color: #5b6577; padding: 6px 10px 6px 0; border-bottom: 1px solid #d6dce6; white-space: nowrap; }\n.at-table td { padding: 6px 10px 6px 0; border-bottom: 1px solid #d6dce6; white-space: nowrap; }\n.at-num { text-align: right !important; } .at-late { color: #d64545; font-weight: 600; }\n.at-empty { color: #5b6577; padding: 12px 0; }\n@media (max-width: 760px) { .at-figs.at-four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }\n@media (max-width: 460px) { .at-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }\n</style>\n",
+    "storeOutMessages": true,
+    "passthru": false,
+    "resendOnRefresh": true,
+    "templateScope": "local",
+    "className": "",
+    "x": 650,
+    "y": 120,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "at_g_sessions",
+    "type": "ui-group",
+    "name": "Active minutes per session",
+    "page": "at_p_over",
+    "width": "6",
+    "height": "1",
+    "order": 2,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false",
+    "groupType": "default"
+  },
+  {
+    "id": "at_f_sessions",
+    "type": "function",
+    "z": "at_tab",
+    "name": "Active minutes per session",
+    "func": "// ---- shared helpers (copied into each function node; function nodes cannot share code) ----\nconst NAMES = { sedentary: \"Sedentary\", walking: \"Walking\", running: \"Running\" };\nconst ORDER = [\"sedentary\", \"walking\", \"running\"];\nconst COLOR = { sedentary: \"#6d78e8\", walking: \"#1fa97a\", running: \"#f08a3c\" };\nconst esc = (v) => String(v === undefined || v === null ? \"\" : v)\n  .replace(/&/g, \"&amp;\").replace(/</g, \"&lt;\").replace(/>/g, \"&gt;\").replace(/\"/g, \"&quot;\");\nconst pad = (n) => (n < 10 ? \"0\" : \"\") + n;\n// times use the Pi's time zone (the setup script sets it)\nconst hhmm = (ts) => { const d = new Date(ts * 1000); return pad(d.getHours()) + \":\" + pad(d.getMinutes()); };\nconst hhmmss = (ts) => { const d = new Date(ts * 1000); return hhmm(ts) + \":\" + pad(d.getSeconds()); };\nconst MONTHS = [\"Jan\", \"Feb\", \"Mar\", \"Apr\", \"May\", \"Jun\", \"Jul\", \"Aug\", \"Sep\", \"Oct\", \"Nov\", \"Dec\"];\nconst sameDay = (a, b) => new Date(a * 1000).toDateString() === new Date(b * 1000).toDateString();\nconst dayLabel = (ts, now) => sameDay(ts, now) ? hhmm(ts)\n  : MONTHS[new Date(ts * 1000).getMonth()] + \" \" + new Date(ts * 1000).getDate();\nconst dayTime = (ts, now) => sameDay(ts, now) ? hhmm(ts) : dayLabel(ts, now) + \", \" + hhmm(ts);\nconst mins = (m) => (m < 10 ? m.toFixed(1) : String(Math.round(m)));\nconst duration = (s) => {\n  if (s < 60) return Math.max(0, Math.round(s)) + \" s\";\n  const m = Math.floor(s / 60);\n  return m < 60 ? m + \" min\" : Math.floor(m / 60) + \" h \" + (m % 60) + \" min\";\n};\n\n// ---- \"Active minutes per session\": bars for the last 10 sessions ----\nconst s = msg.payload || {};\nconst now = s.server_time || Date.now() / 1000;\nconst ss = s.sessions || [];\nif (!ss.length) { msg.payload = '<p class=\"at-empty\">No sessions yet.</p>'; return msg; }\nconst top = Math.max(1, ...ss.map((x) => x.active_min));\nconst bars = ss.map(function (x, i) {\n  const cur = i === ss.length - 1;\n  return '<div class=\"at-bar' + (cur ? \" at-cur\" : \"\") + '\"><b>' + esc(mins(x.active_min)) + '</b><span style=\"height:' +\n    Math.max(2, Math.round(140 * x.active_min / top)) + 'px\" title=\"' + esc(dayTime(x.start, now) + \": \" + mins(x.active_min) +\n    \" active min of \" + mins(x.length_min)) + '\"></span></div>';\n}).join(\"\");\nconst names = ss.map((x) => \"<span>\" + esc(dayLabel(x.start, now)) + \"</span>\").join(\"\");\nmsg.payload = '<p class=\"at-hint\">Walking and running, last 10 sessions. The darkest bar is the session shown above.</p>' +\n  '<div class=\"at-bars\">' + bars + '</div><div class=\"at-names\">' + names + \"</div>\";\nreturn msg;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 180,
+    "wires": [
+      [
+        "at_t_sessions"
+      ]
+    ]
+  },
+  {
+    "id": "at_t_sessions",
+    "type": "ui-template",
+    "z": "at_tab",
+    "group": "at_g_sessions",
+    "page": "",
+    "ui": "",
+    "name": "Active minutes per session",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "head": "",
+    "format": "<template>\n  <div class=\"at\" v-html=\"msg?.payload || ''\"></div>\n</template>\n<style>\n.at { font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; color: #1c2433; font-variant-numeric: tabular-nums; line-height: 1.5; }\n.at p { margin: 0; }\n.at-link { display: flex; align-items: center; gap: 8px; font-size: .92rem; color: #5b6577; margin-bottom: 6px; }\n.at-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: #5b6577; }\n.at-ok { background: #1fa97a; } .at-warn { background: #c98a12; } .at-bad { background: #d64545; }\n.at-word { font: 800 clamp(2.4rem, 8vw, 4.4rem)/1.05 ui-rounded, \"SF Pro Rounded\", \"Segoe UI Variable Display\", \"Segoe UI\", system-ui, sans-serif; letter-spacing: -.03em; }\n.at-sub { color: #5b6577; margin: 8px 0 18px !important; }\n.at-sub b { color: #1c2433; font-weight: 600; }\n.at-ribbon { display: flex; gap: 2px; height: 44px; border-radius: 6px; overflow: hidden; background: #e3e8f0; }\n.at-ribbon span { min-width: 2px; }\n.at-ends { display: flex; justify-content: space-between; font-size: .85rem; color: #5b6577; margin-top: 6px; }\n.at-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 24px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #d6dce6; }\n.at-figs.at-four { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 0; padding-top: 0; border-top: 0; }\n.at-label { font-size: .88rem; color: #5b6577; }\n.at-value { font: 700 1.85rem/1.15 ui-rounded, \"SF Pro Rounded\", \"Segoe UI Variable Display\", \"Segoe UI\", system-ui, sans-serif; }\n.at-value small { font: 500 1rem system-ui, sans-serif; color: #5b6577; margin-left: 3px; }\n.at-note { font-size: .86rem; color: #5b6577; }\n.at-up { color: #1fa97a; } .at-down { color: #d64545; }\n.at-split { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #e3e8f0; margin: 10px 0 6px; }\n.at-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .86rem; color: #5b6577; }\n.at-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }\n.at-hint { font-size: .88rem; color: #5b6577; margin-bottom: 12px !important; }\n.at-bars { display: flex; align-items: flex-end; gap: 8px; height: 170px; border-bottom: 1px solid #d6dce6; }\n.at-bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }\n.at-bar b { font-size: .78rem; color: #5b6577; margin-bottom: 3px; }\n.at-bar span { width: 100%; max-width: 42px; background: #9bd8c3; border-radius: 4px 4px 0 0; }\n.at-cur span { background: #1fa97a; } .at-cur b { color: #1c2433; }\n.at-names { display: flex; gap: 8px; margin-top: 5px; }\n.at-names span { flex: 1; text-align: center; font-size: .74rem; color: #5b6577; white-space: nowrap; overflow: hidden; min-width: 0; }\n.at-changes { list-style: none; margin: 0; padding: 0; }\n.at-changes li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #d6dce6; }\n.at-changes li:last-child { border-bottom: 0; }\n.at-changes time { color: #5b6577; min-width: 3.2em; }\n.at-changes i { width: 10px; height: 10px; border-radius: 50%; flex: none; }\n.at-src { margin-left: auto; color: #5b6577; font-size: .84rem; }\n.at-meter { height: 8px; border-radius: 4px; background: #e3e8f0; margin-top: 8px; overflow: hidden; }\n.at-meter span { display: block; height: 100%; border-radius: 4px; }\n.at-tablewrap { overflow-x: auto; }\n.at-table { border-collapse: collapse; width: 100%; font-size: .92rem; }\n.at-table th { text-align: left; font-weight: 600; color: #5b6577; padding: 6px 10px 6px 0; border-bottom: 1px solid #d6dce6; white-space: nowrap; }\n.at-table td { padding: 6px 10px 6px 0; border-bottom: 1px solid #d6dce6; white-space: nowrap; }\n.at-num { text-align: right !important; } .at-late { color: #d64545; font-weight: 600; }\n.at-empty { color: #5b6577; padding: 12px 0; }\n@media (max-width: 760px) { .at-figs.at-four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }\n@media (max-width: 460px) { .at-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }\n</style>\n",
+    "storeOutMessages": true,
+    "passthru": false,
+    "resendOnRefresh": true,
+    "templateScope": "local",
+    "className": "",
+    "x": 650,
+    "y": 180,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "at_g_changes",
+    "type": "ui-group",
+    "name": "Recent changes",
+    "page": "at_p_over",
+    "width": "6",
+    "height": "1",
+    "order": 3,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false",
+    "groupType": "default"
+  },
+  {
+    "id": "at_f_changes",
+    "type": "function",
+    "z": "at_tab",
+    "name": "Recent changes",
+    "func": "// ---- shared helpers (copied into each function node; function nodes cannot share code) ----\nconst NAMES = { sedentary: \"Sedentary\", walking: \"Walking\", running: \"Running\" };\nconst ORDER = [\"sedentary\", \"walking\", \"running\"];\nconst COLOR = { sedentary: \"#6d78e8\", walking: \"#1fa97a\", running: \"#f08a3c\" };\nconst esc = (v) => String(v === undefined || v === null ? \"\" : v)\n  .replace(/&/g, \"&amp;\").replace(/</g, \"&lt;\").replace(/>/g, \"&gt;\").replace(/\"/g, \"&quot;\");\nconst pad = (n) => (n < 10 ? \"0\" : \"\") + n;\n// times use the Pi's time zone (the setup script sets it)\nconst hhmm = (ts) => { const d = new Date(ts * 1000); return pad(d.getHours()) + \":\" + pad(d.getMinutes()); };\nconst hhmmss = (ts) => { const d = new Date(ts * 1000); return hhmm(ts) + \":\" + pad(d.getSeconds()); };\nconst MONTHS = [\"Jan\", \"Feb\", \"Mar\", \"Apr\", \"May\", \"Jun\", \"Jul\", \"Aug\", \"Sep\", \"Oct\", \"Nov\", \"Dec\"];\nconst sameDay = (a, b) => new Date(a * 1000).toDateString() === new Date(b * 1000).toDateString();\nconst dayLabel = (ts, now) => sameDay(ts, now) ? hhmm(ts)\n  : MONTHS[new Date(ts * 1000).getMonth()] + \" \" + new Date(ts * 1000).getDate();\nconst dayTime = (ts, now) => sameDay(ts, now) ? hhmm(ts) : dayLabel(ts, now) + \", \" + hhmm(ts);\nconst mins = (m) => (m < 10 ? m.toFixed(1) : String(Math.round(m)));\nconst duration = (s) => {\n  if (s < 60) return Math.max(0, Math.round(s)) + \" s\";\n  const m = Math.floor(s / 60);\n  return m < 60 ? m + \" min\" : Math.floor(m / 60) + \" h \" + (m % 60) + \" min\";\n};\n\n// ---- \"Recent changes\": newest first ----\nconst s = msg.payload || {};\nconst ch = s.recent_changes || [];\nmsg.payload = ch.length\n  ? '<ul class=\"at-changes\">' + ch.map((c) => \"<li><time>\" + esc(hhmm(c.ts)) + '</time><i style=\"background:' +\n      COLOR[c.activity] + '\"></i>' + esc(NAMES[c.activity]) + '<span class=\"at-src\">' + esc(c.sensors || \"\") + \"</span></li>\").join(\"\") + \"</ul>\"\n  : '<p class=\"at-empty\">No changes yet in this session.</p>';\nreturn msg;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 240,
+    "wires": [
+      [
+        "at_t_changes"
+      ]
+    ]
+  },
+  {
+    "id": "at_t_changes",
+    "type": "ui-template",
+    "z": "at_tab",
+    "group": "at_g_changes",
+    "page": "",
+    "ui": "",
+    "name": "Recent changes",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "head": "",
+    "format": "<template>\n  <div class=\"at\" v-html=\"msg?.payload || ''\"></div>\n</template>\n<style>\n.at { font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; color: #1c2433; font-variant-numeric: tabular-nums; line-height: 1.5; }\n.at p { margin: 0; }\n.at-link { display: flex; align-items: center; gap: 8px; font-size: .92rem; color: #5b6577; margin-bottom: 6px; }\n.at-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: #5b6577; }\n.at-ok { background: #1fa97a; } .at-warn { background: #c98a12; } .at-bad { background: #d64545; }\n.at-word { font: 800 clamp(2.4rem, 8vw, 4.4rem)/1.05 ui-rounded, \"SF Pro Rounded\", \"Segoe UI Variable Display\", \"Segoe UI\", system-ui, sans-serif; letter-spacing: -.03em; }\n.at-sub { color: #5b6577; margin: 8px 0 18px !important; }\n.at-sub b { color: #1c2433; font-weight: 600; }\n.at-ribbon { display: flex; gap: 2px; height: 44px; border-radius: 6px; overflow: hidden; background: #e3e8f0; }\n.at-ribbon span { min-width: 2px; }\n.at-ends { display: flex; justify-content: space-between; font-size: .85rem; color: #5b6577; margin-top: 6px; }\n.at-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 24px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #d6dce6; }\n.at-figs.at-four { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 0; padding-top: 0; border-top: 0; }\n.at-label { font-size: .88rem; color: #5b6577; }\n.at-value { font: 700 1.85rem/1.15 ui-rounded, \"SF Pro Rounded\", \"Segoe UI Variable Display\", \"Segoe UI\", system-ui, sans-serif; }\n.at-value small { font: 500 1rem system-ui, sans-serif; color: #5b6577; margin-left: 3px; }\n.at-note { font-size: .86rem; color: #5b6577; }\n.at-up { color: #1fa97a; } .at-down { color: #d64545; }\n.at-split { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #e3e8f0; margin: 10px 0 6px; }\n.at-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .86rem; color: #5b6577; }\n.at-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }\n.at-hint { font-size: .88rem; color: #5b6577; margin-bottom: 12px !important; }\n.at-bars { display: flex; align-items: flex-end; gap: 8px; height: 170px; border-bottom: 1px solid #d6dce6; }\n.at-bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }\n.at-bar b { font-size: .78rem; color: #5b6577; margin-bottom: 3px; }\n.at-bar span { width: 100%; max-width: 42px; background: #9bd8c3; border-radius: 4px 4px 0 0; }\n.at-cur span { background: #1fa97a; } .at-cur b { color: #1c2433; }\n.at-names { display: flex; gap: 8px; margin-top: 5px; }\n.at-names span { flex: 1; text-align: center; font-size: .74rem; color: #5b6577; white-space: nowrap; overflow: hidden; min-width: 0; }\n.at-changes { list-style: none; margin: 0; padding: 0; }\n.at-changes li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #d6dce6; }\n.at-changes li:last-child { border-bottom: 0; }\n.at-changes time { color: #5b6577; min-width: 3.2em; }\n.at-changes i { width: 10px; height: 10px; border-radius: 50%; flex: none; }\n.at-src { margin-left: auto; color: #5b6577; font-size: .84rem; }\n.at-meter { height: 8px; border-radius: 4px; background: #e3e8f0; margin-top: 8px; overflow: hidden; }\n.at-meter span { display: block; height: 100%; border-radius: 4px; }\n.at-tablewrap { overflow-x: auto; }\n.at-table { border-collapse: collapse; width: 100%; font-size: .92rem; }\n.at-table th { text-align: left; font-weight: 600; color: #5b6577; padding: 6px 10px 6px 0; border-bottom: 1px solid #d6dce6; white-space: nowrap; }\n.at-table td { padding: 6px 10px 6px 0; border-bottom: 1px solid #d6dce6; white-space: nowrap; }\n.at-num { text-align: right !important; } .at-late { color: #d64545; font-weight: 600; }\n.at-empty { color: #5b6577; padding: 12px 0; }\n@media (max-width: 760px) { .at-figs.at-four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }\n@media (max-width: 460px) { .at-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }\n</style>\n",
+    "storeOutMessages": true,
+    "passthru": false,
+    "resendOnRefresh": true,
+    "templateScope": "local",
+    "className": "",
+    "x": 650,
+    "y": 240,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "at_g_health",
+    "type": "ui-group",
+    "name": "Link and delivery",
+    "page": "at_p_health",
+    "width": "12",
+    "height": "1",
+    "order": 1,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false",
+    "groupType": "default"
+  },
+  {
+    "id": "at_f_health",
+    "type": "function",
+    "z": "at_tab",
+    "name": "Link and delivery",
+    "func": "// ---- shared helpers (copied into each function node; function nodes cannot share code) ----\nconst NAMES = { sedentary: \"Sedentary\", walking: \"Walking\", running: \"Running\" };\nconst ORDER = [\"sedentary\", \"walking\", \"running\"];\nconst COLOR = { sedentary: \"#6d78e8\", walking: \"#1fa97a\", running: \"#f08a3c\" };\nconst esc = (v) => String(v === undefined || v === null ? \"\" : v)\n  .replace(/&/g, \"&amp;\").replace(/</g, \"&lt;\").replace(/>/g, \"&gt;\").replace(/\"/g, \"&quot;\");\nconst pad = (n) => (n < 10 ? \"0\" : \"\") + n;\n// times use the Pi's time zone (the setup script sets it)\nconst hhmm = (ts) => { const d = new Date(ts * 1000); return pad(d.getHours()) + \":\" + pad(d.getMinutes()); };\nconst hhmmss = (ts) => { const d = new Date(ts * 1000); return hhmm(ts) + \":\" + pad(d.getSeconds()); };\nconst MONTHS = [\"Jan\", \"Feb\", \"Mar\", \"Apr\", \"May\", \"Jun\", \"Jul\", \"Aug\", \"Sep\", \"Oct\", \"Nov\", \"Dec\"];\nconst sameDay = (a, b) => new Date(a * 1000).toDateString() === new Date(b * 1000).toDateString();\nconst dayLabel = (ts, now) => sameDay(ts, now) ? hhmm(ts)\n  : MONTHS[new Date(ts * 1000).getMonth()] + \" \" + new Date(ts * 1000).getDate();\nconst dayTime = (ts, now) => sameDay(ts, now) ? hhmm(ts) : dayLabel(ts, now) + \", \" + hhmm(ts);\nconst mins = (m) => (m < 10 ? m.toFixed(1) : String(Math.round(m)));\nconst duration = (s) => {\n  if (s < 60) return Math.max(0, Math.round(s)) + \" s\";\n  const m = Math.floor(s / 60);\n  return m < 60 ? m + \" min\" : Math.floor(m / 60) + \" h \" + (m % 60) + \" min\";\n};\n\n// ---- \"System health\": link figures + delivery log ----\nconst s = msg.payload || {};\nconst ws = s.watch_status;\nconst delay = s.last_delay_s;\nconst delayCol = delay === null || delay === undefined ? \"#1fa97a\" : delay > 10 ? \"#d64545\" : delay > 5 ? \"#c98a12\" : \"#1fa97a\";\nconst brokerTxt = ws ? (ws.status === \"online\" ? \"Online\" : \"Offline\") : \"Unknown\";\nconst brokerNote = ws ? \"since \" + hhmm(ws.since) + (ws.status === \"offline\" ? \" (Last Will from the broker)\" : \"\") : \"No status message yet\";\nconst figs = '<div class=\"at-figs at-four\">' +\n  '<div><div class=\"at-label\">Sensors used</div><div class=\"at-value\">' + esc(s.sensors || \"-\") + '</div><div class=\"at-note\">Fewer sensors means a fallback is in use</div></div>' +\n  '<div><div class=\"at-label\">Last delivery delay</div><div class=\"at-value\">' + (delay === null || delay === undefined ? \"-\" : esc(delay.toFixed(1)) + \"<small>s</small>\") +\n    '</div><div class=\"at-meter\"><span style=\"width:' + Math.min(100, 10 * (delay || 0)) + \"%;background:\" + delayCol + '\"></span></div><div class=\"at-note\">Target: 10 s</div></div>' +\n  '<div><div class=\"at-label\">Watch (broker)</div><div class=\"at-value\" style=\"color:' + (ws && ws.status === \"online\" ? \"#1fa97a\" : \"#d64545\") + '\">' + esc(brokerTxt) +\n    '</div><div class=\"at-note\">' + esc(brokerNote) + \"</div></div>\" +\n  '<div><div class=\"at-label\">Messages that needed a retry</div><div class=\"at-value\">' + esc(s.retried_msgs || 0) +\n    '</div><div class=\"at-note\">of ' + esc(s.total_events || 0) + \" in the last \" + esc(s.history_days || 7) + \" days</div></div></div>\";\nconst rows = (s.log || []).slice(0, 20).map((e) => \"<tr><td>\" + esc(hhmmss(e.ts)) + \"</td><td>\" + esc(String(e.type).replace(\"_\", \" \")) + \"</td><td>\" +\n  esc(NAMES[e.activity] || \"\") + \"</td><td>\" + esc(e.sensors || \"\") + '</td><td class=\"at-num' + (e.delay_s > 10 ? \" at-late\" : \"\") + '\">' +\n  esc(e.delay_s.toFixed(2)) + ' s</td><td class=\"at-num\">' + esc(e.retries) + \"</td></tr>\").join(\"\");\nmsg.payload = figs + '<p class=\"at-hint\" style=\"margin-top:22px\">Delivery log, newest 20 messages. Delay is the time from the watch to the Pi; red means over the 10 s target.</p>' +\n  '<div class=\"at-tablewrap\"><table class=\"at-table\"><thead><tr><th>Time</th><th>Message</th><th>Activity</th><th>Sensors</th><th class=\"at-num\">Delay</th><th class=\"at-num\">Retries</th></tr></thead><tbody>' +\n  (rows || '<tr><td colspan=\"6\" class=\"at-empty\">No messages yet.</td></tr>') + \"</tbody></table></div>\";\nreturn msg;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 300,
+    "wires": [
+      [
+        "at_t_health"
+      ]
+    ]
+  },
+  {
+    "id": "at_t_health",
+    "type": "ui-template",
+    "z": "at_tab",
+    "group": "at_g_health",
+    "page": "",
+    "ui": "",
+    "name": "Link and delivery",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "head": "",
+    "format": "<template>\n  <div class=\"at\" v-html=\"msg?.payload || ''\"></div>\n</template>\n<style>\n.at { font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; color: #1c2433; font-variant-numeric: tabular-nums; line-height: 1.5; }\n.at p { margin: 0; }\n.at-link { display: flex; align-items: center; gap: 8px; font-size: .92rem; color: #5b6577; margin-bottom: 6px; }\n.at-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: #5b6577; }\n.at-ok { background: #1fa97a; } .at-warn { background: #c98a12; } .at-bad { background: #d64545; }\n.at-word { font: 800 clamp(2.4rem, 8vw, 4.4rem)/1.05 ui-rounded, \"SF Pro Rounded\", \"Segoe UI Variable Display\", \"Segoe UI\", system-ui, sans-serif; letter-spacing: -.03em; }\n.at-sub { color: #5b6577; margin: 8px 0 18px !important; }\n.at-sub b { color: #1c2433; font-weight: 600; }\n.at-ribbon { display: flex; gap: 2px; height: 44px; border-radius: 6px; overflow: hidden; background: #e3e8f0; }\n.at-ribbon span { min-width: 2px; }\n.at-ends { display: flex; justify-content: space-between; font-size: .85rem; color: #5b6577; margin-top: 6px; }\n.at-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 24px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #d6dce6; }\n.at-figs.at-four { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 0; padding-top: 0; border-top: 0; }\n.at-label { font-size: .88rem; color: #5b6577; }\n.at-value { font: 700 1.85rem/1.15 ui-rounded, \"SF Pro Rounded\", \"Segoe UI Variable Display\", \"Segoe UI\", system-ui, sans-serif; }\n.at-value small { font: 500 1rem system-ui, sans-serif; color: #5b6577; margin-left: 3px; }\n.at-note { font-size: .86rem; color: #5b6577; }\n.at-up { color: #1fa97a; } .at-down { color: #d64545; }\n.at-split { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #e3e8f0; margin: 10px 0 6px; }\n.at-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .86rem; color: #5b6577; }\n.at-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }\n.at-hint { font-size: .88rem; color: #5b6577; margin-bottom: 12px !important; }\n.at-bars { display: flex; align-items: flex-end; gap: 8px; height: 170px; border-bottom: 1px solid #d6dce6; }\n.at-bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }\n.at-bar b { font-size: .78rem; color: #5b6577; margin-bottom: 3px; }\n.at-bar span { width: 100%; max-width: 42px; background: #9bd8c3; border-radius: 4px 4px 0 0; }\n.at-cur span { background: #1fa97a; } .at-cur b { color: #1c2433; }\n.at-names { display: flex; gap: 8px; margin-top: 5px; }\n.at-names span { flex: 1; text-align: center; font-size: .74rem; color: #5b6577; white-space: nowrap; overflow: hidden; min-width: 0; }\n.at-changes { list-style: none; margin: 0; padding: 0; }\n.at-changes li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #d6dce6; }\n.at-changes li:last-child { border-bottom: 0; }\n.at-changes time { color: #5b6577; min-width: 3.2em; }\n.at-changes i { width: 10px; height: 10px; border-radius: 50%; flex: none; }\n.at-src { margin-left: auto; color: #5b6577; font-size: .84rem; }\n.at-meter { height: 8px; border-radius: 4px; background: #e3e8f0; margin-top: 8px; overflow: hidden; }\n.at-meter span { display: block; height: 100%; border-radius: 4px; }\n.at-tablewrap { overflow-x: auto; }\n.at-table { border-collapse: collapse; width: 100%; font-size: .92rem; }\n.at-table th { text-align: left; font-weight: 600; color: #5b6577; padding: 6px 10px 6px 0; border-bottom: 1px solid #d6dce6; white-space: nowrap; }\n.at-table td { padding: 6px 10px 6px 0; border-bottom: 1px solid #d6dce6; white-space: nowrap; }\n.at-num { text-align: right !important; } .at-late { color: #d64545; font-weight: 600; }\n.at-empty { color: #5b6577; padding: 12px 0; }\n@media (max-width: 760px) { .at-figs.at-four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }\n@media (max-width: 460px) { .at-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }\n</style>\n",
+    "storeOutMessages": true,
+    "passthru": false,
+    "resendOnRefresh": true,
+    "templateScope": "local",
+    "className": "",
+    "x": 650,
+    "y": 300,
+    "wires": [
+      []
+    ]
+  }
+]
