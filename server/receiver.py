@@ -4,7 +4,7 @@ with nothing installed, 32-bit or 64-bit OS).
 POST /report       watch sends one JSON message -> validated, stored, ACKed
 GET  /             the dashboard (web/index.html): open http://<pi-address>:8000 in a browser
 GET  /api/summary  everything the dashboard shows, computed once on the Pi (small JSON)
-GET  /events       all stored events as JSON (only for the optional Streamlit pages; heavy)
+GET  /events       all stored events as JSON (heavy; for debugging)
 GET  /health       {"ok": true}
 
 Run:  python receiver.py          (PORT=8000 by default)

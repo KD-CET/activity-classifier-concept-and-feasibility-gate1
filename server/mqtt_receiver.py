@@ -1,7 +1,7 @@
 """mqtt_receiver.py - MQTT front door for the watch's reports.
 
 Use this INSTEAD of receiver.py when the watch sends over MQTT. It also serves the same HTTP
-API as receiver.py, so the Streamlit pages work unchanged and HTTP stays available as a backup:
+API as receiver.py, so HTTP stays available as a backup:
     GET  /events   all stored events (the dashboard reads this)
     GET  /health   {"ok": true, "mqtt_connected": ..., "watch_status": {...}}
     POST /report   the old HTTP way still works

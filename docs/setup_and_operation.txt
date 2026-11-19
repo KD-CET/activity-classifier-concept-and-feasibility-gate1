@@ -1,6 +1,6 @@
-HOW TO RUN EVERYTHING - Activity Tracker (Project I, 247-519-VA)
-=================================================================
-Kenneth Dialogo. Written November 13, 2026.
+SETUP AND OPERATION - Wearable Activity Classifier
+==================================================
+Kenneth Dialogo, November 2026.
 
 WHAT RUNS WHERE
   Watch (Waveshare ESP32-S3)  classifies sedentary / walking / running ON THE WATCH, every 1.5 s,
@@ -190,5 +190,4 @@ USEFUL COMMANDS ON THE PI
 MORE DETAIL
   server\nodered\NODERED_GUIDE.txt   Node-RED dashboard (laptop and Pi)
   server\MQTT_GUIDE.txt              MQTT on the laptop, the watch link, topics
-  server\pi\PI_GUIDE.txt             HTTP-only version on the Pi
   firmware\README.txt             watch programs and settings

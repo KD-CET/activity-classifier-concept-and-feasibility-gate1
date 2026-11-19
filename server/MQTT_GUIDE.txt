@@ -2,7 +2,7 @@ MQTT GUIDE - Activity Tracker dashboard
 =======================================
 
 THE PIECES
-  Watch  --MQTT-->  Mosquitto (the broker)  -->  mqtt_receiver.py  -->  SQLite  -->  Streamlit pages
+  Watch  --MQTT-->  Mosquitto (the broker)  -->  mqtt_receiver.py  -->  SQLite  -->  dashboards
                                                       ^
                           HTTP backup: the watch can also POST to mqtt_receiver.py on port 8000
 
@@ -11,7 +11,6 @@ THE PIECES
   * mqtt_receiver.py checks each report, stores it (duplicates are never stored twice) and
     sends an ack back to the watch. It ALSO serves the HTTP API the dashboard reads, and still
     accepts HTTP reports, so HTTP is always there as a backup.
-  * The Streamlit pages (app.py, pages/health.py) did not change.
 
 
 TOPICS (device = watch1)
@@ -57,7 +56,6 @@ PART 1 - TEST EVERYTHING ON YOUR LAPTOP NOW (no Pi, no watch needed)
 5. Open a dashboard (any of these)
          http://127.0.0.1:8000                 the built-in web dashboard (nothing to install)
          Node-RED dashboard                    see nodered/NODERED_GUIDE.txt
-         python -m streamlit run app.py        the older Streamlit pages (optional)
 
 6. Watch the traffic in a GUI (optional but useful)
    * MQTT Explorer (free): new connection, host localhost, port 1883, Connect.
@@ -130,10 +128,8 @@ On the Pi (Raspberry Pi OS), in a terminal:
    hostname -I                             (the Pi's address, e.g. 192.168.43.77)
 Copy this whole folder to the Pi, then in it:
    python3 mqtt_receiver.py
-Run Streamlit on your LAPTOP (the Pi Zero 2 W is short on memory for it):
-   Windows cmd:   set API_URL=http://192.168.43.77:8000
-                  streamlit run app.py
-   PowerShell:    $env:API_URL="http://192.168.43.77:8000"; streamlit run app.py
+Open the dashboard from the laptop: http://<pi-address>:1880/dashboard (Node-RED) or
+http://<pi-address>:8000 (backup). For the full Pi install use pi/setup_pi_mqtt.sh instead.
 Point the watch at the Pi's address instead of the laptop's. MQTT Explorer: host = Pi's address.
 
 

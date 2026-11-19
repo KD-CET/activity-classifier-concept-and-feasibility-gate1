@@ -8,8 +8,8 @@ ActivityClassifier/   Live classification ON THE WATCH + replay test + reporting
                       Keep all 6 files together: ActivityClassifier.ino, activity_features.h,
                       activity_model.h, activity_replay.h, activity_link.h, link_config.h
   BEFORE UPLOADING edit link_config.h: Wi-Fi name and password, the laptop's (later the Pi's)
-  IP address, and LINK_USE_MQTT (0 = HTTP, the default; 1 = MQTT). HTTP to the Pi:
-  server/pi/PI_GUIDE.txt. MQTT: server/MQTT_GUIDE.txt.
+  IP address, and LINK_USE_MQTT (1 = MQTT, as tested; 0 = HTTP backup). HTTP to the Pi:
+  docs/setup_and_operation.txt. MQTT: server/MQTT_GUIDE.txt.
   Bottom line of the live screen: "HTTP link ok | queued 0" (green) when reports get through;
   amber "no Wi-Fi" / "setting clock" / "no server" while they wait in the outbox.
   BOOT tap      : switch LIVE <-> REPLAY

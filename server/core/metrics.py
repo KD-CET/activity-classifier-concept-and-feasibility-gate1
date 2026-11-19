@@ -1,11 +1,11 @@
 """core/metrics.py - turns the raw event list into what the two dashboard pages show.
 
 REBUILT on Nov 11, 2026: the original file was lost with a deleted chat. It returns exactly the
-fields that app.py and pages/health.py read. Pure Python, no Streamlit, so it can be unit tested.
+fields the dashboard summary uses. Pure Python, so it can be unit tested.
 
 Sessions
   * A session starts at a session_start event, or at the first event after a silence longer
-    than the session timeout (SESSION_TIMEOUT_MIN in client.py).
+    than the session timeout.
   * It ends at session_end, or when the watch has been silent for longer than the timeout.
   * It is "open" (in progress) if it has not ended and the watch was heard within the timeout.
 Time per activity

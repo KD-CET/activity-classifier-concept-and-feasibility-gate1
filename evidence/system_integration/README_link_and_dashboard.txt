@@ -24,7 +24,5 @@ Files
       19 automated tests: session/minute logic, MQTT receiver (valid, rejected, duplicate,
       lossy link, Last Will, summary topic), web dashboard and summary.
   end_to_end_receiver_test.txt     HTTP receiver + simulator under loss (Nov 11).
-  dashboard_overview_test_data.png, nodered_sections_test_data.png
-      The dashboards rendered with test data (layout and content check).
 
 Measured on the real link (Nov 15-16, 2026): see ../C3_C4_C5_link_tests/ and claims_register.csv.
