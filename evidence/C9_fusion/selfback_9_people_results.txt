@@ -1,0 +1,66 @@
+33 people in the dataset, using the first 9 by ID: 026, 027, 028, 029, 030, 031, 033, 034, 036
+7642 windows: {'sedentary': 3030, 'walking': 3028, 'running': 1584}
+
+Error rate (%) on the left-out person, same windows for every model (leave one person out):
+                 wrist only (7)  thigh only (9)  fused, one model (16)  late fusion (votes averaged)
+left-out person                                                                                     
+026                         8.4            13.0                   14.5                           6.8
+027                         7.2             2.3                    5.1                           2.3
+028                         2.0             0.1                    0.4                           0.1
+029                         2.2             2.8                    2.8                           1.8
+030                        17.4             7.2                   13.7                          12.3
+031                         2.0             0.9                    1.0                           1.3
+033                         0.8             0.2                    0.2                           0.1
+034                         4.4             1.6                    1.5                           1.5
+036                         0.8             0.8                    1.0                           0.2
+MEAN                        5.0             3.2                    4.5                           2.9
+WORST                      17.4            13.0                   14.5                          12.3
+
+Confusion, wrist only (7) (rows = true, columns = predicted, order ['running', 'sedentary', 'walking']):
+           running  sedentary  walking
+running       1511         15       58
+sedentary        7       2941       82
+walking        158         64     2806
+
+Confusion, thigh only (9) (rows = true, columns = predicted, order ['running', 'sedentary', 'walking']):
+           running  sedentary  walking
+running       1440          8      136
+sedentary        2       3023        5
+walking         76         15     2937
+
+Confusion, fused, one model (16) (rows = true, columns = predicted, order ['running', 'sedentary', 'walking']):
+           running  sedentary  walking
+running       1437          9      138
+sedentary       19       3005        6
+walking        149         19     2860
+
+Confusion, late fusion (votes averaged) (rows = true, columns = predicted, order ['running', 'sedentary', 'walking']):
+           running  sedentary  walking
+running       1523          9       52
+sedentary        2       3021        7
+walking        119         36     2873
+
+Saved: selfback_fusion_results.csv
+
+Source and method (Nov 19, 2026): training/selfback_fusion_check.py on the public selfBACK
+dataset (UCI, CC BY 4.0): Axivity AX3 accelerometers on the dominant wrist and the thigh,
+worn TOGETHER, 100 Hz. First 9 people by ID (026-036), to match the 9 PAMAP2 people of the
+wrist model. Resampled to 40 Hz, 1.5 s windows, random forest 10 trees depth 6 balanced, leave
+one person out; every model uses the same windows and test person.
+No gyroscope in selfBACK: accelerometer features only (wrist 7, thigh 7 + tilt mean/spread
+from the person's standing direction = the thigh unit's calibration).
+
+Reading the result (9 people):
+* Wrist only 5.0 % mean error; thigh only 3.2 %; one fused model on both 4.5 %; late fusion
+  (wrist and thigh models trained separately, votes averaged) 2.9 %.
+* Late fusion had a lower error than wrist only for all 9 people. The single fused model beat
+  wrist only for 6 of 9 but did worse than thigh alone on average: with 16 features and only
+  8 training people per fold it fits person-specific details (with all 33 people it matches
+  thigh alone: 1.3 %).
+* Two people (026, 030) dominate every mean; with 9 people the differences between thigh,
+  fused and late fusion are small compared with the person-to-person spread.
+* Check with all 33 people (selfback_33_people_check.txt): wrist 2.8 %, thigh 1.3 %, fused
+  1.3 %, late fusion 1.2 %; fusion beat wrist only for 31 of 33 people.
+Limits: public data, Axivity sensors (not the watch or the MPU-6050), accelerometer only, so
+this answers the fusion question for these sensors; the thigh unit's own recordings
+(train_fusion.py) are still needed for the project's hardware.

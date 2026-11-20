@@ -1,0 +1,70 @@
+69951 windows from 22 people: {'sitting': 36953, 'walking': 15036, 'standing': 8534, 'lying': 5579, 'running': 3849}
+
+Error rate (%) on the left-out person (leave one person out). Wrist model on PAMAP2: 3.3 %
+                 thigh accel features (7)  thigh accel + tilt (9)
+left-out person                                                  
+S006                                  1.6                     0.8
+S008                                  3.4                     1.3
+S009                                  2.8                     3.5
+S010                                  3.1                     4.6
+S012                                  1.1                     0.1
+S013                                  1.7                     0.8
+S014                                  3.0                     2.1
+S015                                  1.9                     1.7
+S016                                  0.6                     0.2
+S017                                  2.6                     1.9
+S018                                  4.6                     4.1
+S019                                  1.1                     0.5
+S020                                  0.7                     0.4
+S021                                  1.5                     0.9
+S022                                  1.2                     0.6
+S023                                  1.8                     1.3
+S024                                  2.5                     2.0
+S025                                  4.5                     1.8
+S026                                  3.7                     2.3
+S027                                  0.9                     0.3
+S028                                  1.1                     0.3
+S029                                 18.2                    35.2
+MEAN                                  2.9                     3.0
+WORST                                18.2                    35.2
+
+Confusion, thigh accel features (7) (rows = true, columns = predicted, order ['running', 'sedentary', 'walking']):
+           running  sedentary  walking
+running       3735          1      113
+sedentary        2      50119      945
+walking        454        258    14324
+
+Confusion, thigh accel + tilt (9) (rows = true, columns = predicted, order ['running', 'sedentary', 'walking']):
+           running  sedentary  walking
+running       3761          1       87
+sedentary        1      50410      655
+walking        791        152    14093
+
+Thigh tilt from the standing pose (deg), middle 80 % of windows:
+  standing     2.9 -   18.8   (median 7.6, 8534 windows)
+  sitting     70.3 -  100.4   (median 84.1, 36953 windows)
+  lying       79.1 -  103.2   (median 90.2, 5579 windows)
+  walking     16.1 -   39.9   (median 27.8, 15036 windows)
+  running     44.8 -   56.1   (median 51.5, 3849 windows)
+
+Saved: harth_thigh_results.csv
+
+Source and method (Nov 19, 2026): training/harth_thigh_check.py on the public HARTH dataset
+(UCI, CC BY 4.0, 22 people, Axivity AX3 accelerometer on the right front thigh, 50/100 Hz).
+Resampled to 40 Hz, 1.5 s windows, random forest 10 trees depth 6 balanced, leave one person
+out, same as the wrist model. HARTH has no gyroscope: 7 of the thigh unit's 10 motion features
+(no gyro_mean/std/max) + tilt mean/spread from the accelerometer only, relative to each
+person's mean standing direction (stands in for the thigh unit's calibration).
+Sedentary = standing, sitting, lying; shuffling, stairs and cycling left out.
+
+Reading the result:
+* A thigh accelerometer alone classifies the three activities across 22 people with a mean
+  error of 2.9 % (3.0 % with tilt), similar to the wrist on PAMAP2 (3.3 %). Different people,
+  sensor and dataset, so this is NOT a wrist-vs-thigh-vs-fused comparison (C9 needs both
+  sensors on the same people at the same time).
+* Tilt separates standing (median 7.6 deg) from sitting (84.1 deg) and lying (90.2 deg), as
+  assumed (A3). Both are "sedentary" in this project, so tilt mainly reduces sedentary ->
+  walking errors (945 -> 655 windows).
+* Tilt lowered the error for 18 of 22 people but raised it for S029 (18.2 -> 35.2 %): S029's
+  walking is unusually vigorous (acceleration spread 1.11 g, tilt 41 deg, like other people's
+  running), so it is read as running. One outlier person dominates the mean.

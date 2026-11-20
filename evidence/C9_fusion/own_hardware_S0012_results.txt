@@ -1,0 +1,30 @@
+C9 on own hardware - /fusion/S0012.csv, Nov 19, 2026, 23:33-23:38, one wearer (me)
+Box strapped as worn, standing pose recorded with it on. Plan written before: stand 1 min, walk
+2 min, jog 1 min, sit 1 min. Walking and jogging were done IN PLACE (on the spot), as in S0011. Phase times taken from the visible changes in the data;
+~5-10 s left out at each change.
+Pass criteria (written before): thigh model >= 85 % right on walking; fused at least as good as
+wrist alone.
+
+Share of windows right (same windows for every model):
+                 windows   wrist alone   thigh alone   fused (votes averaged)   shown (smoothed)
+  standing          39        66.7 %       100.0 %          84.6 %                  84.6 %
+  walking           64        95.3 %       100.0 %         100.0 %                 100.0 %
+  jogging           24       100.0 %        16.7 %          95.8 %                 100.0 %
+  sitting           40        95.0 %       100.0 %         100.0 %                 100.0 %
+  all              167        89.2 %        88.0 %          95.8 %                  96.4 %
+Result: thigh model 100 % on walking (>= 85 %) -> PASS; fused 95.8 % vs wrist 89.2 % -> PASS.
+
+Notes
+* Standing: the wrist model called 13 of 39 standing windows walking/running (arm movement);
+  the thigh model called all 39 sedentary; fused reduced the wrong windows to 6.
+  This is the case fusion is meant for.
+* Jogging in place: the thigh model called it "walking" (4 of 24 right); the wrist was right, and
+  the averaged result stayed right in 23 of 24 windows. Jogging on the spot lifts the knees
+  (tilt 50-75 deg) instead of the forward running in the training data: likely cause, not tested.
+* Thigh tilt: standing ~15 deg, walking ~14 deg (swing spread ~6 deg), jogging ~50-75 deg,
+  sitting 58.5 deg (lower than the 78 deg measured earlier: different chair/posture; still
+  read as sedentary).
+* 196 of 196 thigh packets received, 0 I2C errors.
+Limits: one wearer, one 5-minute session, one place, walking/jogging in place only. Same
+movements as S0011; the difference is the calibration: in S0011 the box was not in the pose it
+was calibrated in (thigh 14 % on walking), here it was (100 %).

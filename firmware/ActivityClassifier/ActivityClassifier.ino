@@ -10,7 +10,22 @@
       brief arm movement while sitting is not shown or counted as walking.
     * Shows the activity inside a ring (how many trees agree), the last 60 s as a colour strip,
       and the minutes spent in each activity.
-    * Serial Monitor: one line per window (shown label, raw label, vote share, the 10 features).
+    * Serial Monitor: one line per window (shown label, raw label, vote share, the 10 features,
+      then the thigh unit's features when its packets arrive).
+
+  THIGH UNIT (Nov 19, firmware/ThighSensor): feature packets arrive over ESP-NOW every 1.5 s.
+    * SENSOR FUSION (decision level): every window the wrist model (activity_model.h, PAMAP2)
+      and the thigh model (activity_model_thigh.h) each give a share of votes per activity; the
+      watch averages them. Used while thigh packets are fresh, the thigh sensor is ok and its
+      standing pose is calibrated: pill WRIST+THIGH, reports tagged "wrist+thigh".
+      Thigh packets but not calibrated: pill CAL THIGH, wrist only. No packets: pill WRIST,
+      wrist only, tagged "wrist". The watch never waits for the thigh unit (REQ-AC-10).
+    * The thigh model shipped here is trained on public thigh data (HARTH, 22 people,
+      training/thigh_model_public.py). training/train_fusion.py can replace it with one
+      trained on your own recordings (same file name, same interface).
+    * Recording for training (C9): every window is appended to /fusion/S0001.csv, S0002.csv ...
+      on the SD card (wrist + thigh features, both labels). A new file at power-on and at each
+      BOOT hold (new session).
 
   REPLAY screen (needs replay.bin from the notebook, Part 4, in the root of the SD card)
     * Runs every PAMAP2 window in the file through the on-watch model.
@@ -25,9 +40,9 @@
   (or HTTP as backup), with a heartbeat every 10 s. EDIT link_config.h FIRST (Wi-Fi, address).
   Needs the "PubSubClient" library (Nick O'Leary) for MQTT. See MQTT_GUIDE.txt in server.
 
-  Files in this folder (all six are needed)
+  Files in this folder (all eight are needed)
     ActivityClassifier.ino, activity_features.h, activity_model.h, activity_replay.h,
-    activity_link.h, link_config.h
+    activity_link.h, link_config.h, activity_board.h, thigh_packet.h, activity_model_thigh.h
 
   Arduino IDE (same settings as ImuRecorder)
     Board "ESP32S3 Dev Module", esp32 core 3.x, USB CDC On Boot: Enabled,
@@ -44,6 +59,9 @@
 #include "activity_model.h"
 #include "activity_replay.h"
 #include "activity_link.h"          // sends reports to the receiver (settings in link_config.h)
+                                   // + activity_board.h: thigh unit packets over ESP-NOW
+#include "activity_model_thigh.h"   // thigh model for the sensor fusion (same 3 classes)
+static_assert(THG_N_CLASSES == ACT_N_CLASSES, "thigh model must have the same classes as the wrist model");
 
 // ---------------- Pins (Waveshare pin_config.h) ---------------------------
 #define LCD_SDIO0 4
@@ -183,6 +201,8 @@ int current = -1;                       // shown (smoothed) class index from act
 int rawLast = -1, rawRun = 0;           // latest raw prediction and how many windows in a row
 const int STABLE_N = 3;                 // label changes only after 3 agreeing windows (4.5 s)
 float prob[ACT_N_CLASSES];
+bool thighNow = false, fusedNow = false;   // thigh packets fresh / fusion used (last window)
+int lastWristK = -1, lastThighK = -1;      // each model's own pick (last window)
 float secs[ACT_N_CLASSES];
 uint32_t lastInferUs = 0;
 const int HIST = 40;                    // 40 windows x 1.5 s = last 60 s
@@ -285,7 +305,10 @@ const int CX = LCD_WIDTH / 2, CY = 210, R_OUT = 124, R_IN = 104;
 
 void drawLive() {
   char buf[48];
-  header("Activity", imuOk ? "LIVE" : "NO IMU", imuOk ? C_GOOD : C_BAD);
+  if (!imuOk) header("Activity", "NO IMU", C_BAD);
+  else if (fusedNow) header("Activity", "WRIST+THIGH", C_GOOD);
+  else if (thighNow) header("Activity", "CAL THIGH", C_WARN);   // packets, but not usable yet
+  else header("Activity", "WRIST", C_GOOD);
 
   if (!imuOk) {
     gauge(CX, CY, R_OUT, R_IN, 0, C_BAD);
@@ -430,12 +453,79 @@ void redraw() {
   if (useCanvas) canvas->flush();
 }
 
+// ---------------- Recording for training the fused model (C9) ----------------------
+// One CSV per session on the SD card: /fusion/S0001.csv, S0002.csv ... (new file at power-on
+// and at each BOOT hold). Label later with the session's written plan (train_fusion.py).
+static const char *ACT_FEATURE_NAMES[ACT_N_FEATURES] = {"acc_mean", "acc_std", "acc_min", "acc_max",
+    "acc_jerk", "gyro_mean", "gyro_std", "gyro_max", "cadence_hz", "cadence_power"};
+char fusionPath[24] = "";
+
+void fusionLogStart() {
+  fusionPath[0] = 0;
+  if (!sdOk) return;
+  SD_MMC.mkdir("/fusion");
+  for (int n = 1; n < 10000; n++) {
+    char p[24];
+    snprintf(p, sizeof(p), "/fusion/S%04d.csv", n);
+    if (!SD_MMC.exists(p)) { strcpy(fusionPath, p); break; }
+  }
+  File f = SD_MMC.open(fusionPath, FILE_WRITE);
+  if (!f) { fusionPath[0] = 0; return; }
+  f.print("epoch_s,ms,window,label_shown,label_raw,model,label_wrist,label_thigh,thigh,thigh_age_ms,thigh_seq,thigh_i2c_err");
+  for (int i = 0; i < ACT_N_FEATURES; i++) { f.print(",w_"); f.print(ACT_FEATURE_NAMES[i]); }
+  for (int i = 0; i < TP_N_FEAT; i++) { f.print(","); f.print(TP_FEAT_NAMES[i]); }
+  f.println();
+  f.close();
+  Serial.printf("[sd] recording windows to %s\n", fusionPath);
+}
+
+void fusionLogWindow(const float *x, int raw, const TpFeatures *tp, uint32_t thighAge) {
+  if (!fusionPath[0]) return;
+  File f = SD_MMC.open(fusionPath, FILE_APPEND);
+  if (!f) return;
+  char b[96];
+  double ep = clockSet() ? nowEpoch() : -1;
+  snprintf(b, sizeof(b), "%.3f,%lu,%lu,%s,%s,%s,%s,%s,%d,", ep, (unsigned long)millis(), (unsigned long)windows,
+           ACT_CLASS_NAMES[current], ACT_CLASS_NAMES[raw], fusedNow ? "fused" : "wrist",
+           ACT_CLASS_NAMES[lastWristK], lastThighK >= 0 ? ACT_CLASS_NAMES[lastThighK] : "", tp ? 1 : 0);
+  f.print(b);
+  if (tp) snprintf(b, sizeof(b), "%lu,%lu,%u", (unsigned long)thighAge, (unsigned long)tp->seq, tp->i2c_errors_window);
+  else strcpy(b, ",,");
+  f.print(b);
+  for (int i = 0; i < ACT_N_FEATURES; i++) { snprintf(b, sizeof(b), ",%.5f", x[i]); f.print(b); }
+  for (int i = 0; i < TP_N_FEAT; i++) {
+    if (tp) { snprintf(b, sizeof(b), ",%.5f", tp->f[i]); f.print(b); }
+    else f.print(",");
+  }
+  f.println();
+  f.close();
+}
+
 // ---------------- Live classification --------------------------------------------
 void classifyLive() {
   float x[ACT_N_FEATURES];
+  TpFeatures tp;
+  uint32_t thighAge = 0;
   uint32_t t0 = micros();
   act_compute_features(win, x);
-  int raw = act_predict(x, prob);
+  thighNow = board_latest(&tp, &thighAge);
+  // sensor fusion: average the wrist and thigh models' votes (decision-level fusion)
+  float pw[ACT_N_CLASSES], pt[ACT_N_CLASSES];
+  lastWristK = act_predict(x, pw);
+  lastThighK = -1;
+  fusedNow = thighNow && (tp.h.flags & TP_FLAG_IMU_OK) && (tp.h.flags & TP_FLAG_CALIBRATED);
+  if (fusedNow) {
+    float f[TP_N_FEAT], xt[THG_N_FEATURES];
+    memcpy(f, tp.f, sizeof(f));                     // out of the packed packet first
+    for (int i = 0; i < THG_N_FEATURES; i++) xt[i] = f[THG_IDX[i]];
+    lastThighK = thg_predict(xt, pt);
+  }
+  int raw = 0;
+  for (int k = 0; k < ACT_N_CLASSES; k++) {
+    prob[k] = fusedNow ? 0.5f * (pw[k] + pt[k]) : pw[k];
+    if (prob[k] > prob[raw]) raw = k;
+  }
+  boardUsed = fusedNow;                             // reports tagged "wrist+thigh" only when used
   lastInferUs = micros() - t0;
   // smoothing: a brief arm movement (1-2 windows) does not change the shown activity
   rawRun = (raw == rawLast) ? rawRun + 1 : 1;
@@ -451,7 +541,14 @@ void classifyLive() {
   Serial.printf("%lu,%s,%s,%.2f", (unsigned long)windows, ACT_CLASS_NAMES[current],
                 ACT_CLASS_NAMES[raw], prob[raw]);
   for (int i = 0; i < ACT_N_FEATURES; i++) Serial.printf(",%.4f", x[i]);
+  Serial.printf(",%s,%s,%s,%s", fusedNow ? "fused" : "wrist", ACT_CLASS_NAMES[lastWristK],
+                lastThighK >= 0 ? ACT_CLASS_NAMES[lastThighK] : "-", thighNow ? "yes" : "no");
+  if (thighNow) {
+    Serial.printf(",%lu,%lu,%u", (unsigned long)thighAge, (unsigned long)tp.seq, tp.i2c_errors_window);
+    for (int i = 0; i < TP_N_FEAT; i++) Serial.printf(",%.4f", tp.f[i]);
+  }
   Serial.println();
+  fusionLogWindow(x, raw, thighNow ? &tp : nullptr, thighAge);
 }
 
 // ---------------- Replay ---------------------------------------------------------
@@ -549,8 +646,15 @@ void setup() {
   if (imuOk) {
     xTaskCreatePinnedToCore(samplerTask, "imu", 4096, nullptr, 5, nullptr, 0);
     link_begin();                                  // Wi-Fi + MQTT/HTTP in its own task (core 1)
-    Serial.println("window,label_shown,label_raw,vote_share_raw,acc_mean,acc_std,acc_min,acc_max,acc_jerk,"
-                   "gyro_mean,gyro_std,gyro_max,cadence_hz,cadence_power");
+    Serial.print("window,label_shown,label_raw,vote_share_raw,acc_mean,acc_std,acc_min,acc_max,acc_jerk,"
+                 "gyro_mean,gyro_std,gyro_max,cadence_hz,cadence_power,model,label_wrist,label_thigh,thigh,thigh_age_ms,thigh_seq,thigh_i2c_err");
+    for (int i = 0; i < TP_N_FEAT; i++) Serial.printf(",%s", TP_FEAT_NAMES[i]);
+    Serial.println();
+    Serial.printf("[boot] sensor fusion: wrist model 0x%08lX + thigh model 0x%08lX (votes averaged)\n",
+                  (unsigned long)ACT_MODEL_ID, (unsigned long)THG_MODEL_ID);
+    for (int k = 0; k < ACT_N_CLASSES; k++)
+      if (strcmp(ACT_CLASS_NAMES[k], THG_CLASS_NAMES[k]) != 0) Serial.println("[boot] ERROR: class order differs");
+    fusionLogStart();
   }
   redraw();
 }
@@ -569,6 +673,7 @@ void loop() {
       link_post(EV_END, -1);                       // close the session on the dashboard...
       if (current >= 0) link_post(EV_START, current);   // ...and start a new one
       for (int i = 0; i < HIST; i++) hist[i] = -1;
+      fusionLogStart();                            // new recording file for the new session
     } else if (rpState == RP_READY) {
       rpState = RP_RUN; rpSaved = false;
       Serial.println("replay started");

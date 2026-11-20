@@ -1,0 +1,12 @@
+Mean absolute tilt error (deg), simulated thigh, 40 Hz, alpha 0.97
+segment       complementary accelerometer only    gyro only
+standing               1.25               2.18         4.14
+sitting                1.20               1.39        18.88
+walking                1.60               1.78        31.57
+accelerometer samples used 1443, skipped as impacts 116
+tilt stats check (80,82,84,86 -> mean 83, std 2.236): 83.000 2.236
+PASS: complementary filter error <= 5 deg in every segment
+
+Source: firmware/ThighSensor/tests/thigh_fusion_test.cpp (g++ on a PC, Nov 19, 2026). Simulated
+signals, not the real sensor: it checks the filter code, not the hardware. The real check is a
+standing/sitting test with the thigh unit (tilt ~0 vs ~80-90 deg).

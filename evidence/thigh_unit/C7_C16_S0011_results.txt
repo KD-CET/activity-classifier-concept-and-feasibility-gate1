@@ -1,0 +1,26 @@
+C7 and C16 - from the watch's SD recording /fusion/S0011.csv (Nov 19, 2026)
+Test window: 22:52:01-22:59:05 (7.1 min, 284 windows of 1.5 s). Walking in place ~3.5 min,
+jogging/running in place ~2 min, then still. Thigh unit on [USB power bank / battery].
+Phases taken from the visible changes in the data (times not recorded during the test).
+
+C7 - board packets reach the watch (criterion: >= 95 % of packets)
+  Thigh window numbers 59 -> 342: 284 expected, 284 received, 0 missing.
+  Every one of the 284 watch windows had fresh thigh data (age 1.18-1.20 s).  -> 100 %  PASS
+  (Earlier in the same file, before the test, thigh data stopped at 22:42:59 and 22:47:35 and
+  restarted at window 6 / window 2: the thigh unit was switched off and on, not lost packets.)
+
+C16 - thigh sensor reads without I2C errors while walking and running (criterion: 0 errors)
+  thigh_i2c_err = 0 in all 284 windows (about 17,000 sensor reads at 40 Hz).  -> PASS
+
+Extra (C9, own hardware) - share of windows each model got right, same windows:
+                 windows   wrist alone   thigh alone   fused (votes averaged)   shown (smoothed)
+  walking          140        97.9 %        14.3 %          96.4 %                 100.0 %
+  running           70        90.0 %         1.4 %          84.3 %                  92.9 %
+  still             34        94.1 %        97.1 %          97.1 %                 100.0 %
+  The thigh model (trained on public HARTH data) got walking and running wrong: it called
+  walking "sedentary" and running "walking". The thigh tilt during walking was ~85-95 deg from
+  the calibrated pose (HARTH walking: ~28 deg), which the model reads as sitting. Likely causes:
+  (1) the standing pose was not recorded with the box strapped on as worn [check], and/or
+  (2) walking/running IN PLACE moves the thigh differently from the real walking and running in
+  the training data. Fusion was slightly worse than the wrist alone in this test (96.4 vs 97.9 %,
+  84.3 vs 90.0 %); smoothing hid most of it in the shown label.

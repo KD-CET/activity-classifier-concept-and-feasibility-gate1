@@ -26,6 +26,7 @@ struct LinkEvent {
   uint8_t type;
   int8_t activity;      // class index from activity_model.h, -1 = none
   uint32_t ms;          // millis() when it happened
+  uint8_t thigh;        // 1 = thigh unit data was used then (tag "wrist+thigh")
 };
 
 // ---------------- Pure helpers (no hardware; tested on the PC) ------------------------------
@@ -90,6 +91,7 @@ static int link_parse_reply(const char *s, int len, uint32_t *seq) {
 
 #ifdef ARDUINO
 // ---------------- On the watch ------------------------------------------------------------------
+#include "activity_board.h"     // thigh unit over ESP-NOW (started below, after Wi-Fi)
 #include <WiFi.h>
 #include <sys/time.h>
 #include <time.h>
@@ -116,7 +118,7 @@ static double nowEpoch() {
 
 // called from the main loop
 void link_post(uint8_t type, int activity) {
-  LinkEvent e = {type, (int8_t)activity, millis()};
+  LinkEvent e = {type, (int8_t)activity, millis(), (uint8_t)(board_in_use() ? 1 : 0)};
   if (linkQ) xQueueSend(linkQ, &e, 0);
 }
 
@@ -124,7 +126,8 @@ static int buildFor(OutboxItem *it, char *buf, int size) {
   double ts = nowEpoch() - (millis() - it->ev.ms) / 1000.0;      // when it HAPPENED
   const char *act = (it->ev.activity >= 0 && it->ev.type != EV_HB && it->ev.type != EV_END)
                         ? ACT_CLASS_NAMES[it->ev.activity] : nullptr;
-  return link_build_json(buf, size, DEVICE_ID, it->seq, it->ev.type, act, ts, SENSORS_USED, it->retries);
+  const char *sensors = it->ev.thigh ? "wrist+thigh" : "wrist";     // sensors in use when it happened
+  return link_build_json(buf, size, DEVICE_ID, it->seq, it->ev.type, act, ts, sensors, it->retries);
 }
 
 static uint32_t nextSeq = 0;
@@ -187,6 +190,7 @@ static void linkTask(void *) {
   WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   lastWifiTry = millis();
+  board_begin();                       // ESP-NOW for the thigh unit, on the same radio
 
   for (;;) {
     LinkEvent e;

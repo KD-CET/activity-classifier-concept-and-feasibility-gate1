@@ -1,0 +1,19 @@
+HARTH: 69951 windows, 22 people
+1. Leave one person out on HARTH: mean error 3.0 %, worst 35.2 % (S029)
+2. Trained on HARTH, tested on selfBACK (9 people, outside test): mean error 1.9 %, worst 6.2 % (030)
+   by person: 026 2.6, 027 2.5, 028 0.1, 029 3.1, 030 6.2, 031 0.9, 033 0.2, 034 1.3, 036 0.5
+predicted  running  sedentary  walking
+true                                  
+running       1525          6       53
+sedentary        0       3026        4
+walking         84          3     2941
+
+Wrote activity_model_thigh.h: 1092 nodes, id 0x7203534E
+
+Source (Nov 19, 2026): training/thigh_model_public.py. The thigh model on the watch
+(firmware/ActivityClassifier/activity_model_thigh.h) is trained on all 22 HARTH people with the 9
+accelerometer features the thigh unit sends (no gyroscope in HARTH). Outside test: the same
+model on the thigh sensor of 9 selfBACK people (another study, other people): 1.9 % mean error.
+The C model was checked against scikit-learn: same answer on 13,604 of 13,604 windows.
+On the watch its votes are averaged with the wrist model's (the method that did best on
+selfBACK, evidence/C9_fusion/). Not yet tested with the real thigh unit (MPU-6050).

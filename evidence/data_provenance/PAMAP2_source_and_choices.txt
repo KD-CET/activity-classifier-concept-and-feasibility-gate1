@@ -1,6 +1,6 @@
 Training data: PAMAP2 Physical Activity Monitoring (public dataset)
 Reference: A. Reiss and D. Stricker, "Introducing a New Benchmarked Dataset for Activity
-Monitoring," ISWC 2012. Dataset documents are in 6_PROJECT_DOCUMENTS/PAMAP2_dataset_docs.
+Monitoring," ISWC 2012. Dataset documents: see the UCI repository page (data/README.md).
 
 Why a public dataset
   The project supervisor allowed outside datasets on the condition that the sensor placement and the

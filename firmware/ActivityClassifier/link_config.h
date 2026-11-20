@@ -18,7 +18,8 @@
 // ---- Identity and timing ----
 #define DEVICE_ID "watch1"          // must match the topic the receiver expects
 #define TOPIC_ROOT "activity"       // topics: activity/watch1/report, /ack, /status
-#define SENSORS_USED "wrist"        // becomes "wrist+thigh" once the board is added
+// The "sensors" tag in each report is set automatically: "wrist+thigh" while thigh unit packets
+// arrive, "wrist" otherwise (activity_board.h, claim C10).
 #define HEARTBEAT_MS 10000          // "still here" message every 10 s while the link is up
 #define ACK_TIMEOUT_MS 2000         // no ack within this -> resend the same message
 #define OUTBOX_SIZE 64              // reports kept while the link is down (a 60 s outage needs ~10)

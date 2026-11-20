@@ -15,3 +15,9 @@ nine PAMAP2 wearers, used to train and test the classifier (claim C2).
 
 To rebuild these files from the raw dataset: put the raw `subject10x.dat` files in
 `data/raw/` and run `python training/build_wrist.py`.
+
+## Thigh data used for checks (not stored here)
+
+HARTH (UCI, https://archive.ics.uci.edu/dataset/779/harth, CC BY 4.0): 22 people, accelerometer on the right front thigh. Used by `training/harth_thigh_check.py` (results in `evidence/thigh_unit/`). Download the dataset and pass its folder to the script; it is about 800 MB unzipped, so it is not committed.
+
+selfBACK (UCI, https://archive.ics.uci.edu/dataset/521/selfback, CC BY 4.0): 33 people, accelerometers on the dominant wrist and the thigh worn together. Used by `training/selfback_fusion_check.py` (results in `evidence/C9_fusion/`). Not committed (about 735 MB unzipped).

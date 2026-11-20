@@ -43,7 +43,7 @@ evidence for every feasibility claim at Gate 1.
 | Healthy link | 40/40 reports delivered, max 0.14 s |
 | 60 s outage | all buffered reports delivered, none lost |
 | 500 ms delay + 20 % loss | 22/24 within 30 s, none lost — **target not met** |
-| Fusion with the thigh sensor | **open** — board not built yet |
+| Fusion with the thigh sensor | **open** — thigh unit firmware written (Nov 19), hardware tests pending |
 
 Full register: [`evidence/claims_register.csv`](evidence/claims_register.csv) ·
 summary: [`evidence/README.md`](evidence/README.md) ·
@@ -53,8 +53,8 @@ report: [`reports/stage1/`](reports/stage1/)
 
 | Folder | Contents |
 |---|---|
-| `firmware/` | `ActivityClassifier` (watch program, 6 files), `ImuRecorder` (raw IMU to SD), `sd_card/replay.bin` (replay test data) |
-| `training/` | Training notebook (Colab) and the dataset build script |
+| `firmware/` | `ActivityClassifier` (watch program), `ThighSensor` (thigh unit: MPU-6050, complementary filter, ESP-NOW to the watch; the watch averages its wrist model's and a thigh model's votes), `ImuRecorder` (raw IMU to SD), `sd_card/replay.bin` (replay test data) |
+| `training/` | Training notebook (Colab), the dataset build script, `thigh_model_public.py` (thigh model on public HARTH data), and the fusion checks `selfback_fusion_check.py` / `train_fusion.py` (C9) |
 | `data/` | PAMAP2 wrist data, 9 wearers (CC BY 4.0) |
 | `server/` | Receiver, database, dashboards, Pi installer, test and scoring tools, automated tests |
 | `evidence/` | Results, logs and screenshots for claims C1–C16 |

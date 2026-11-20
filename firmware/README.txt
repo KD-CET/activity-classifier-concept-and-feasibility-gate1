@@ -5,8 +5,13 @@ Libraries (Arduino Library Manager): "GFX Library for Arduino" (moononournation)
 MQTT link, "PubSubClient" (Nick O'Leary). No sensor library needed.
 
 ActivityClassifier/   Live classification ON THE WATCH + replay test + reporting to the receiver.
-                      Keep all 6 files together: ActivityClassifier.ino, activity_features.h,
-                      activity_model.h, activity_replay.h, activity_link.h, link_config.h
+                      Keep all 8 files together: ActivityClassifier.ino, activity_features.h,
+                      activity_model.h, activity_replay.h, activity_link.h, link_config.h,
+                      activity_board.h, thigh_packet.h, activity_model_thigh.h
+  Sensor fusion: thigh unit packets over ESP-NOW; the wrist model and the thigh model
+  (activity_model_thigh.h, trained on public HARTH thigh data) each vote and the votes are
+  averaged. Pill WRIST+THIGH while fused, CAL THIGH if the thigh unit is not calibrated, WRIST
+  otherwise; reports tagged "wrist+thigh" / "wrist"; windows recorded to /fusion/S0001.csv.
   BEFORE UPLOADING edit link_config.h: Wi-Fi name and password, the laptop's (later the Pi's)
   IP address, and LINK_USE_MQTT (1 = MQTT, as tested; 0 = HTTP backup). HTTP to the Pi:
   docs/setup_and_operation.txt. MQTT: server/MQTT_GUIDE.txt.
@@ -22,3 +27,8 @@ SD_CARD/replay.bin    Copy to the ROOT of the SD card (FAT32), insert before pow
 
 ImuRecorder/          The Nov 9-10 recorder: saves labelled 40 Hz motion CSVs to the SD card
                       (W1_walking_001.csv ...) for recording your own volunteers.
+
+ThighSensor/          The thigh unit (ESP32-WROOM + MPU-6050, Nov 19): complementary-filter thigh
+                      tilt + 10 motion features (14 in all), sent to the watch over ESP-NOW
+                      every 1.5 s.
+                      Board "ESP32 Dev Module". Wiring, calibration and safety: ThighSensor/README.txt

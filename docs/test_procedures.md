@@ -77,3 +77,30 @@ Common set-up: Pi powered (broker, receiver and dashboard start automatically), 
 * **Procedure:** after at least three logged sessions, open the dashboard Overview and record
   the current-session active minutes, the comparison with the previous session and the
   per-session chart.
+
+## Thigh unit (C7, C9, C10, C16)
+
+Set-up: thigh unit strapped to the front of the thigh and calibrated standing (hold its BOOT
+button 2 s); watch running the firmware with `activity_board.h`; pill shows WRIST+THIGH.
+Details: `firmware/ThighSensor/README.txt`.
+
+**C7 – board packets reach the watch.** Criterion (write first), e.g. "over 5 minutes of
+walking and sitting, at least 95 % of thigh packets arrive". Count: thigh unit windows sent
+(its Serial Monitor) vs watch rows with `thigh = 1` in `/fusion/S000n.csv`; missing
+`thigh_seq` numbers are lost packets.
+
+**C10 – fallback when the board is unplugged.** Switch the thigh unit off for 60 s while
+walking, then on. Expected: pill WRIST within ~3.5 s, reports tagged `wrist`; back to
+WRIST+THIGH after it is switched on. Check the `sensors` field in the database
+(`dashboard.db`, column `sensors`) or the dashboard's System health page.
+
+**C16 – no I2C errors in motion.** Walk 5 min and run 2 min with the thigh unit; criterion
+e.g. "0 failed sensor reads". Read `thigh_i2c_err` in the SD recording (or the thigh unit's
+Serial Monitor `i2c_err_total`).
+
+**C9 – wrist vs thigh vs fused.** Record at least 3 scripted sessions (BOOT hold on the watch
+starts each one, plan written first). Copy `/fusion/S*.csv` from the watch's SD card, write
+`sessions.csv` (file, plan) and run `python training/train_fusion.py <folder>`. It reports
+the leave-one-session-out error of wrist-only, thigh-only, one fused model and the watch's
+method (votes averaged) on the same windows, and writes `activity_model_thigh.h` trained on
+your data. Public-data result (selfBACK, 9 people): `evidence/C9_fusion/`.
