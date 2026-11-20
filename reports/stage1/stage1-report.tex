@@ -4,9 +4,7 @@
 % (Salik). Identifiers carried from the frozen proposal: N1-N3,
 % REQ-AC-01..12, R1-R3 (now risks), A1-A4, D1-D2, platform C1-C4.
 %
-% BEFORE PRINTING, search for "??" and replace every \Lref{...} with the
-% real logbook entry number. Nothing here is invented:
-% every number comes from evidence/.
+% Every number comes from evidence/.
 % Compile in Overleaf (IEEEtran). Limit: 3-4 printed pages.
 % =====================================================================
 \documentclass[conference]{IEEEtran}
@@ -17,8 +15,6 @@
 \usepackage{tikz}
 \usetikzlibrary{positioning}
 
-% logbook entry still to be numbered: prints L-?? with a hint
-\newcommand{\Lref}[1]{L-\textbf{??}\textsuperscript{\tiny #1}}
 
 \title{Wearable Lifestyle Activity Classifier with Wireless Reporting}
 
@@ -64,7 +60,7 @@ L-22 \\
 Companion computer & A Raspberry Pi Zero 2 W runs the message
 broker, the receiver and the dashboard. Reports use MQTT to my own
 broker (a public broker was rejected for privacy and
-repeatability); HTTP is kept as a backup. &
+repeatability); HTTP is kept as a backup. The watch also sends a heartbeat (its current label, to show it is still connected) every 10\,s. &
 Nov 13 entry \\
 REQ-AC-06 & Watch partition scheme changed from the 1.25\,MB default
 to a 32\,MB scheme after the first compile used 82\,\% of program
@@ -100,9 +96,6 @@ L-16 \\
 % =====================================================================
 \section{Concept Alternatives}
 \label{sec:concepts}
-% CHECK: keep this table only if your logbook has the criteria and
-% weights dated BEFORE the scores. If not, write them in the logbook
-% now, say so honestly in that entry, and then score.
 
 Four technology-level concepts were compared; each fails for a
 different reason. \textbf{A}, wrist-only learned classifier on the
@@ -181,7 +174,7 @@ Table~\ref{tab:claims} gives each claim with its kind of evidence,
 its logbook entry and its status. The evidence files are in the
 project repository, folder \texttt{evidence}, indexed by
 \texttt{claims\_register.csv}.
-Pass criteria were written in the logbook before each test. A pass
+Pass criteria were written in the logbook before each test; C2 and C3 use the requirement's own threshold, and C12 is an observation. A pass
 fraction is $p=n_\mathrm{ok}/N$.
 
 \begin{table*}[t]
@@ -199,16 +192,16 @@ C2 & REQ-AC-02 & Leave-one-wearer-out mean error $\leq$15\,\%. & Measured & L-22
 C3 & REQ-AC-03 & On a healthy link every report arrives within 10\,s. & Measured & L-22 & C1 session: $p=40/40$, median 0.04\,s, max 0.14\,s, none resent or lost. 6 of the 30 minutes the method calls for. & Partly supported \\
 C4 & REQ-AC-04 & With 500\,ms delay and 20\,\% loss every report arrives within 30\,s. & Measured & L-13, L-21 & Phone hotspot, 6 min: $p=22/24$; a heartbeat resent 14 times (37.9\,s) held up the change behind it (53.1\,s). Repeated on a home router: $p=33/35$, same pattern (35.2 and 32.7\,s). None lost in either. & Unsupported \\
 C5 & REQ-AC-05 & After a 60\,s outage every buffered report arrives, none lost. & Measured & L-12 & Broker stopped 60\,s: nothing arrived for 65\,s; both changes made during it arrived afterwards with their real times; 0 missing sequence numbers. A real 45\,s Wi-Fi drop (C13 attempt 1): 0 lost. & Supported \\
-C6 & REQ-AC-06 & The trained classifier fits in the watch's memory (C1). & Measured & L-11 & Whole sketch with model (10 trees, depth 6, 654 nodes): 1\,075\,030\,B program (3\,\% of the 32\,MB scheme; 82\,\% of the default), 72\,888\,B RAM (22\,\%). & Supported \\
+C6 & REQ-AC-06 & The trained classifier fits in the watch's memory (platform C1). & Measured & L-11 & Whole sketch with model (10 trees, depth 6, 654 nodes): 1\,075\,030\,B program (3\,\% of the 32\,MB scheme; 82\,\% of the default), 72\,888\,B RAM (22\,\%). & Supported \\
 C7 & REQ-AC-07 & Board feature packets reach the watch wirelessly. & Measured & L-17 & Nov 19, 7\,min walking and jogging in place: 284 of 284 thigh packets received, $p=1.00$ (criterion $\geq$0.95). & Supported \\
 C8 & REQ-AC-08 & Firmware and pipeline deploy from one documented command. & Measured & L-20 & Nov 14: one command installed broker, receiver and dashboard on a fresh Pi (19:01--19:16). Watch upload is still manual. & Partly supported \\
 C9 & REQ-AC-09 & Wrist-only, board-only and fused error reported side by side. & Calculated (public data); Measured & L-22, Nov 19 entry & selfBACK, 9 people, leave one out: wrist 5.0\,\%, thigh 3.2\,\%, one fused model 4.5\,\%, votes averaged 2.9\,\% (better than wrist for 9 of 9). Own hardware, one wearer, 167 windows: right 89.2\,\% wrist, 88.0\,\% thigh, 95.8\,\% fused. & Partly supported \\
 C10 & REQ-AC-10 & With the board unplugged, reports continue with the right sensor tag. & Measured & L-16 & Thigh unit off: tag ``wrist'' within one heartbeat (10\,s), classification continued; on: ``wrist+thigh'' again without restarting the watch (attempt 2; attempt 1 found a restart bug, fixed). & Supported \\
-C11 & REQ-AC-11 & 30-min scripted session: $\geq$85\,\% of 1-min intervals correct; active minutes reported. & -- & -- & Planned by \textbf{[date]}: sit 10, walk 8, run 4, sit 8 min wearing both units, scored minute by minute (also completes C3 and own-hardware C9). & Open \\
+C11 & REQ-AC-11 & 30-min scripted session: $\geq$85\,\% of 1-min intervals correct; active minutes reported. & -- & -- & Planned by Nov 23: sit 10, walk 8, run 4, sit 8 min wearing both units, scored minute by minute (also completes C3 and own-hardware C9). & Open \\
 C12 & REQ-AC-12 & The computer shows current-session active minutes beside previous sessions. & Measured & L-22 & Nov 15 dashboard: 4.0 active min, ``+4.0 min compared with last session'', chart of the last 10 sessions. & Supported \\
 C13 & A1 & In one room the watch reaches the board and the computer. & Measured & L-22 & Board to watch: 284 of 284 (C7). Watch to Pi at about 5\,m: 22 of 23 within 10\,s (one 10.75\,s after a Wi-Fi stall), none lost. & Partly supported \\
 C14 & A3 & Motion features separate sedentary, walking and running. & Measured & L-14 & Own watch, 121 windows: 8 of 10 features separate all three (middle 80\,\% do not overlap); cadence does not. Thigh tilt on the thigh unit: standing 1--12$^\circ$, sitting 78$^\circ$ (HARTH, 22 people: 7.6$^\circ$ vs 84$^\circ$). & Supported \\
-C15 & A4 & The watch's figures (C1--C4) match its datasheet. & Assumed & -- & Taken from the vendor wiki; settled by checking the datasheet. & Open \\
+C15 & A4 & The watch's figures (platform C1--C4) match its datasheet. & Assumed & -- & Taken from the vendor wiki; settled by checking the datasheet. & Open \\
 C16 & A5 & The thigh sensor reads without I2C errors while walking and running. & Measured & L-18 & 0 read errors in 284 windows (about 17\,000 reads at 40\,Hz) while walking and jogging in place (criterion 0). & Supported \\
 \bottomrule
 \end{tabular}
@@ -300,7 +293,7 @@ higher consequence (Table~\ref{tab:risks}, Fig.~\ref{fig:matrix}).
 \textbf{ID} & \textbf{Risk (evidence behind $p$)} & $p$ & $c$ & $P$ & \textbf{Rank} \\
 \midrule
 R4 & Public-data thigh model fails on the thigh unit (own test: 17\,\% right on jogging) & 3 & 3 & 9 & 1 \\
-R2 & Reports late on a degraded link (C4: 2 of 24 late) & 4 & 2 & 8 & 2 \\
+R2 & Reports late on a degraded link (C4: 2 of 24 and 2 of 35 late) & 4 & 2 & 8 & 2 \\
 R1 & Wrist model does not hold for other wearers of this watch (one wearer tested) & 2 & 3 & 6 & 3 \\
 R8 & Thigh unit not yet battery-powered (power bank in tests); a LiPo without a regulator gives the ESP32 only 2.7--3.2\,V & 3 & 2 & 6 & 4 \\
 R6 & Watch cannot reach the Pi after a restart (seen Nov 14) & 3 & 2 & 6 & 5 \\
@@ -374,15 +367,15 @@ reads cleanly (C16), and the watch falls back to the wrist and recovers
 (C10). On public paired data, fusing wrist and thigh lowered the error
 for every person, and on the project's own hardware it raised the share
 of windows right from 89.2 to 95.8\,\% for one wearer. Three shortfalls
-are reported as they are: 2 of 24 reports were late on a degraded link
+are reported as they are: 2 of 24 (hotspot) and 2 of 35 (router) reports were late on a degraded link
 (C4); the
 thigh model is weak on jogging and fusion is tested on one wearer only
 (C9, R4); and the 30-minute session is not done (C11). I expect
-\textbf{proceed with conditions}: (1) train the thigh model on own
-recordings and repeat the fusion test on more wearers, by
-\textbf{[date]}; (2) complete C11 wearing both units by \textbf{[date]};
-(3) send activity changes ahead of heartbeats and retest C4 by
-\textbf{[date]}.
+\textbf{proceed with conditions}: (1) complete C11 wearing both units by
+Nov 23; (2) train the thigh model on own recordings and repeat the
+fusion test on own hardware, with one or more other wearers where
+available and otherwise on further sessions of my own, by Nov 28; (3) send activity changes ahead
+of heartbeats and retest C4 by Dec 1.
 
 \vspace{2pt}
 \noindent{\footnotesize\emph{AI use:} an AI assistant helped draft
