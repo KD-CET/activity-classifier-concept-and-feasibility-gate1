@@ -15,10 +15,14 @@ evidence for every feasibility claim at Gate 1.
 ## System
 
 ```
+ Thigh unit (ESP32 + MPU-6050)
+ IMU 40 Hz -> complementary filter (tilt) -> 14 features per 1.5 s
+   --- ESP-NOW --->
  Wrist unit (ESP32-S3 watch)                          Server (Raspberry Pi Zero 2 W)
  IMU 40 Hz -> 1.5 s windows -> 10 features           Mosquitto broker
-   -> random forest (10 trees) -> 3-window smoothing  -> receiver: ack, de-duplicate, SQLite
-   -> on-screen label                                 -> summary topic -> Node-RED dashboard
+   -> wrist model + thigh model, votes averaged       -> receiver: ack, de-duplicate, SQLite
+      (wrist alone if no thigh data)                  -> summary topic -> Node-RED dashboard
+   -> 3-window smoothing -> on-screen label
    -> report on change, buffer + retry --- MQTT ---->
 ```
 
@@ -26,6 +30,11 @@ evidence for every feasibility claim at Gate 1.
   (`firmware/ActivityClassifier/activity_model.h`, model id `0xED69B0BC`). Ten
   orientation-free features: acceleration mean, spread, minimum, maximum, jerk; rotation mean,
   spread, maximum; step rhythm and its strength.
+* **Thigh unit and fusion.** The thigh unit sends 14 features (the same 10 + thigh tilt) every
+  1.5 s over ESP-NOW. The watch averages the votes of its wrist model and a thigh model
+  (`activity_model_thigh.h`, trained on public HARTH data, model id `0x7203534E`) while the
+  thigh data is fresh and calibrated; otherwise it uses the wrist alone. Reports are tagged
+  `wrist+thigh` or `wrist`.
 * **Reporting.** One message per change of the shown activity plus a 10 s heartbeat. Each
   report keeps its sequence number until the receiver acknowledges it, so resends are stored
   once. Up to 64 reports are buffered during an outage. Broker Last Will marks the device
@@ -42,8 +51,12 @@ evidence for every feasibility claim at Gate 1.
 | Memory | 1,075,030 B program (3 %), 72,888 B RAM (22 %) |
 | Healthy link | 40/40 reports delivered, max 0.14 s |
 | 60 s outage | all buffered reports delivered, none lost |
-| 500 ms delay + 20 % loss | 22/24 within 30 s, none lost — **target not met** |
-| Fusion with the thigh sensor | **open** — thigh unit firmware written (Nov 19), hardware tests pending |
+| 500 ms delay + 20 % loss | 22/24 (phone hotspot) and 33/35 (home router) within 30 s, none lost — **target not met** |
+| Thigh unit to watch | 284/284 packets received, 0 sensor read errors (7 min) |
+| Thigh unit switched off | reports continue tagged `wrist` within 10 s; `wrist+thigh` again when switched on |
+| Fusion, public wrist + thigh data (selfBACK, 9 people) | error 2.9 % fused vs 5.0 % wrist alone; better for 9 of 9 people |
+| Fusion, own hardware (one wearer, in place) | 95.8 % of windows right fused vs 89.2 % wrist alone |
+| 30-minute scripted session (C11) | **open** — planned by Nov 23 |
 
 Full register: [`evidence/claims_register.csv`](evidence/claims_register.csv) ·
 summary: [`evidence/README.md`](evidence/README.md) ·
@@ -55,10 +68,10 @@ report: [`reports/stage1/`](reports/stage1/)
 |---|---|
 | `firmware/` | `ActivityClassifier` (watch program), `ThighSensor` (thigh unit: MPU-6050, complementary filter, ESP-NOW to the watch; the watch averages its wrist model's and a thigh model's votes), `ImuRecorder` (raw IMU to SD), `sd_card/replay.bin` (replay test data) |
 | `training/` | Training notebook (Colab), the dataset build script, `thigh_model_public.py` (thigh model on public HARTH data), and the fusion checks `selfback_fusion_check.py` / `train_fusion.py` (C9) |
-| `data/` | PAMAP2 wrist data, 9 wearers (CC BY 4.0) |
+| `data/` | PAMAP2 wrist data, 9 wearers (CC BY 4.0); download notes for HARTH and selfBACK |
 | `server/` | Receiver, database, dashboards, Pi installer, test and scoring tools, automated tests |
 | `evidence/` | Results, logs and screenshots for claims C1–C16 |
-| `reports/` | Stage 1 report (LaTeX) and the proposal source |
+| `reports/` | Stage 1 report (LaTeX source and PDF) and the proposal |
 | `docs/` | Setup and operation guide; test procedures |
 
 ## Rebuild
@@ -91,7 +104,12 @@ python3 -m unittest discover -s tests                         # automated tests 
 ## Data and acknowledgements
 
 PAMAP2 Physical Activity Monitoring dataset, A. Reiss and D. Stricker, UCI Machine Learning
-Repository, CC BY 4.0. Hand IMU only; see [`data/README.md`](data/README.md).
+Repository, CC BY 4.0. Hand IMU only.
+HARTH, A. Logacjov, A. Kongsvold, K. Bach, H. Bårdstu and P. Mork, UCI Machine Learning
+Repository, doi:10.24432/C5NC90, CC BY 4.0. Thigh accelerometer; trains the thigh model.
+selfBACK, UCI Machine Learning Repository (2020), doi:10.24432/C5SK65, CC BY 4.0. Wrist and
+thigh accelerometers worn together; used to compare fusion methods.
+See [`data/README.md`](data/README.md).
 
 An AI assistant was used to draft parts of the code (link layer, server, test tools) and of the
 documentation. Each part was verified by automated tests and on the hardware; the logbook

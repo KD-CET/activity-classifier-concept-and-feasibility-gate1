@@ -21,7 +21,7 @@
 \author{
 \IEEEauthorblockN{Kenneth Dialogo}
 \IEEEauthorblockA{247-519-VA Project I -- Stage 1 Concept and Feasibility Report\\
-Vanier College, November 18, 2026}
+Vanier College, November 20, 2026}
 }
 
 \begin{document}
@@ -149,7 +149,7 @@ because it has no learned model (fails REQ-AC-06, 08).
 \node[fb, below=of sw] (sb) {Sense body\\motion};
 \node[fb, right=of sw] (ew) {Extract wrist\\features};
 \node[fb, right=of sb] (eb) {Extract body\\features};
-\node[fb, right=0.4cm of ew, yshift=-0.55cm] (fc) {Fuse, classify\\and smooth};
+\node[fb, right=1.0cm of ew, yshift=-0.55cm] (fc) {Fuse, classify\\and smooth};
 \node[fb, above=of fc] (fb2) {Show activity\\to wearer};
 \node[fb, below=of fc] (rp) {Report changes,\\buffer, retry};
 \node[fb, left=of rp, yshift=-1.0cm] (lg) {Store and show\\progress};
@@ -211,7 +211,7 @@ C16 & A5 & The thigh sensor reads without I2C errors while walking and running. 
 of 10 trees trained on ten orientation-free features from 1.5\,s
 windows at 40\,Hz, and it runs on the watch. On the dataset it is
 far inside the 15\,\% target, and in the live test it gave the right
-label for the whole of each activity. Live switching takes 6--7\,s,
+label for the whole of each activity. Live switching takes 5.8--7.3\,s,
 which is the 4.5\,s smoothing plus window timing. C2 stays partly
 supported because the error comes from a public dataset with a
 different sensor, and three of the nine wearers have no running
@@ -246,6 +246,8 @@ on the spot only, so no leave-one-wearer-out on this hardware yet.
 % =====================================================================
 \section{Baselined Requirements}
 \label{sec:baseline}
+Table~\ref{tab:baseline} gives the status of each requirement after
+Stage 1, with its claim and any change in wording or threshold.
 
 \begin{table}[h]
 \centering
@@ -253,7 +255,7 @@ on the spot only, so no leave-one-wearer-out on this hardware yet.
 \setlength{\tabcolsep}{3pt}
 \caption{Baselined requirements, one status each.}
 \label{tab:baseline}
-\begin{tabular}{p{1.45cm}p{0.55cm}p{3.95cm}p{1.35cm}}
+\begin{tabular}{p{1.45cm}p{0.75cm}p{3.75cm}p{1.35cm}}
 \toprule
 \textbf{ID} & \textbf{Claim} & \textbf{Now (reason if changed)} & \textbf{Status} \\
 \midrule
@@ -379,8 +381,13 @@ of heartbeats and retest C4 by Dec 1.
 
 \vspace{2pt}
 \noindent{\footnotesize\emph{AI use:} an AI assistant helped draft
-wording, the analysis and test scripts, and the firmware link code;
-every number above was measured by me and is recorded in the cited
-logbook entry.}
+wording, the analysis and test scripts, and the firmware (link, thigh
+unit and fusion code), which I reviewed and tested on the hardware.
+Every number above comes from my own tests or my own analysis of the
+public data, and is recorded in the cited logbook entry.
+
+\noindent\emph{Data:} PAMAP2 (A.~Reiss, D.~Stricker), HARTH
+(A.~Logacjov et al., doi:10.24432/C5NC90) and selfBACK
+(doi:10.24432/C5SK65), UCI Machine Learning Repository, CC BY 4.0.}
 
 \end{document}
