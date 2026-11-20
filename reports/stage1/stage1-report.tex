@@ -47,7 +47,7 @@ proposal. No requirement was added, removed or renumbered.
 REQ-AC-02, A2 & Training and test data: nine PAMAP2 wearers
 (public dataset, hand IMU on the dominant wrist) instead of five
 volunteers. Same placement as the watch; more wearers for
-leave-one-wearer-out; outside data allowed by the instructor. &
+leave-one-wearer-out; outside data allowed by the instructor. A2 now rests on C2 and C6. &
 L-22 \\
 REQ-AC-01 & Class definitions fixed: sedentary = lying, sitting,
 standing, watching TV, computer work, car driving; stairs and
@@ -175,7 +175,8 @@ its logbook entry and its status. The evidence files are in the
 project repository, folder \texttt{evidence}, indexed by
 \texttt{claims\_register.csv}.
 Pass criteria were written in the logbook before each test; C2 and C3 use the requirement's own threshold, and C12 is an observation. A pass
-fraction is $p=n_\mathrm{ok}/N$.
+fraction is $p=n_\mathrm{ok}/N$. Claims are numbered C1--C16; the
+proposal's platform constraints C1--C4 are written ``platform C1--C4''.
 
 \begin{table*}[t]
 \centering
@@ -195,13 +196,13 @@ C5 & REQ-AC-05 & After a 60\,s outage every buffered report arrives, none lost. 
 C6 & REQ-AC-06 & The trained classifier fits in the watch's memory (platform C1). & Measured & L-11 & Whole sketch with model (10 trees, depth 6, 654 nodes): 1\,075\,030\,B program (3\,\% of the 32\,MB scheme; 82\,\% of the default), 72\,888\,B RAM (22\,\%). & Supported \\
 C7 & REQ-AC-07 & Board feature packets reach the watch wirelessly. & Measured & L-17 & Nov 19, 7\,min walking and jogging in place: 284 of 284 thigh packets received, $p=1.00$ (criterion $\geq$0.95). & Supported \\
 C8 & REQ-AC-08 & Firmware and pipeline deploy from one documented command. & Measured & L-20 & Nov 14: one command installed broker, receiver and dashboard on a fresh Pi (19:01--19:16). Watch upload is still manual. & Partly supported \\
-C9 & REQ-AC-09 & Wrist-only, board-only and fused error reported side by side. & Calculated (public data); Measured & L-22, Nov 19 entry & selfBACK, 9 people, leave one out: wrist 5.0\,\%, thigh 3.2\,\%, one fused model 4.5\,\%, votes averaged 2.9\,\% (better than wrist for 9 of 9). Own hardware, one wearer, 167 windows: right 89.2\,\% wrist, 88.0\,\% thigh, 95.8\,\% fused. & Partly supported \\
+C9 & REQ-AC-09 & Wrist-only, board-only and fused error reported side by side. & Measured (public data; own hardware) & L-22, Nov 19 entry & selfBACK, 9 people, leave one out: wrist 5.0\,\%, thigh 3.2\,\%, one fused model 4.5\,\%, votes averaged 2.9\,\% (better than wrist for 9 of 9). Own hardware, one wearer, 167 windows: right 89.2\,\% wrist, 88.0\,\% thigh, 95.8\,\% fused. & Partly supported \\
 C10 & REQ-AC-10 & With the board unplugged, reports continue with the right sensor tag. & Measured & L-16 & Thigh unit off: tag ``wrist'' within one heartbeat (10\,s), classification continued; on: ``wrist+thigh'' again without restarting the watch (attempt 2; attempt 1 found a restart bug, fixed). & Supported \\
 C11 & REQ-AC-11 & 30-min scripted session: $\geq$85\,\% of 1-min intervals correct; active minutes reported. & -- & -- & Planned by Nov 23: sit 10, walk 8, run 4, sit 8 min wearing both units, scored minute by minute (also completes C3 and own-hardware C9). & Open \\
 C12 & REQ-AC-12 & The computer shows current-session active minutes beside previous sessions. & Measured & L-22 & Nov 15 dashboard: 4.0 active min, ``+4.0 min compared with last session'', chart of the last 10 sessions. & Supported \\
 C13 & A1 & In one room the watch reaches the board and the computer. & Measured & L-22 & Board to watch: 284 of 284 (C7). Watch to Pi at about 5\,m: 22 of 23 within 10\,s (one 10.75\,s after a Wi-Fi stall), none lost. & Partly supported \\
 C14 & A3 & Motion features separate sedentary, walking and running. & Measured & L-14 & Own watch, 121 windows: 8 of 10 features separate all three (middle 80\,\% do not overlap); cadence does not. Thigh tilt on the thigh unit: standing 1--12$^\circ$, sitting 78$^\circ$ (HARTH, 22 people: 7.6$^\circ$ vs 84$^\circ$). & Supported \\
-C15 & A4 & The watch's figures (platform C1--C4) match its datasheet. & Assumed & -- & Taken from the vendor wiki; settled by checking the datasheet. & Open \\
+C15 & A4 & The watch's figures (platform C1--C4) match its datasheet. & Assumed & -- & Taken from the vendor wiki; planned check against the datasheet by Nov 28. & Open \\
 C16 & A5 & The thigh sensor reads without I2C errors while walking and running. & Measured & L-18 & 0 read errors in 284 windows (about 17\,000 reads at 40\,Hz) while walking and jogging in place (criterion 0). & Supported \\
 \bottomrule
 \end{tabular}
@@ -283,6 +284,7 @@ The proposal's uncertainties R1--R3 are now risks with estimated
 probabilities; R4--R8 were uncovered by the work. Probability $p$ and
 consequence $c$ run from 1 to 4, $P=p\times c$, and ties go to the
 higher consequence (Table~\ref{tab:risks}, Fig.~\ref{fig:matrix}).
+Table~\ref{tab:toprisk} writes out the top two.
 
 \begin{table}[h]
 \centering
@@ -296,7 +298,7 @@ higher consequence (Table~\ref{tab:risks}, Fig.~\ref{fig:matrix}).
 \midrule
 R4 & Public-data thigh model fails on the thigh unit (own test: 17\,\% right on jogging) & 3 & 3 & 9 & 1 \\
 R2 & Reports late on a degraded link (C4: 2 of 24 and 2 of 35 late) & 4 & 2 & 8 & 2 \\
-R1 & Wrist model does not hold for other wearers of this watch (one wearer tested) & 2 & 3 & 6 & 3 \\
+R1 & Classifier misses 15\,\% error on other wearers of this watch (one wearer tested) & 2 & 3 & 6 & 3 \\
 R8 & Thigh unit not yet battery-powered (power bank in tests); a LiPo without a regulator gives the ESP32 only 2.7--3.2\,V & 3 & 2 & 6 & 4 \\
 R6 & Watch cannot reach the Pi after a restart (seen Nov 14) & 3 & 2 & 6 & 5 \\
 R3 & Fusion does not beat wrist-only (it did on selfBACK, 9 of 9) & 2 & 2 & 4 & 6 \\
@@ -340,18 +342,27 @@ R7 & Program storage runs out (closed: C6, now 3\,\%) & 1 & 3 & 3 & 8 \\
 \begin{table}[h]
 \centering
 \footnotesize
-\caption{Top-ranked risk, R4, in six fields.}
+\caption{The two top-ranked risks, R4 and R2, in six fields.}
 \label{tab:toprisk}
 \begin{tabular}{p{1.6cm}p{5.8cm}}
 \toprule
 \textbf{Field} & \textbf{Entry} \\
 \midrule
+\multicolumn{2}{l}{\textbf{R4} (rank 1)} \\
 Statement & The thigh model, trained on public thigh data, misclassifies on the project's thigh unit. \\
 Assumption & Features from the MPU-6050 in the strapped case match those of the public data (HARTH) once the standing pose is recorded as worn. \\
 Consequence & Fusion adds errors where the wrist is unsure (jogging: thigh 17\,\% right); with the case mis-placed it was worse than the wrist alone (S0011). \\
 Probability & Likely (3): own test right on walking (100\,\%) but 17\,\% on jogging; 14\,\% on walking when the case was not in its calibrated position. \\
 Evidence required & Running and jogging on more sessions and wearers; wrist, thigh and fused scored on the same windows (C9, C11). \\
 Mitigation & Calibrate after strapping and check standing $\approx$0$^\circ$ / sitting $\approx$80$^\circ$ before each test; if still wrong, train the thigh model on own recordings (\texttt{train\_fusion.py}). \\
+\midrule
+\multicolumn{2}{l}{\textbf{R2} (rank 2)} \\
+Statement & Reports arrive later than 30\,s on a degraded link. \\
+Assumption & The report and retry logic delivers each change within 30\,s under 500\,ms delay and 20\,\% loss. \\
+Consequence & REQ-AC-04 unmet; the link half of the PoC question is answered only for loss, not for delay. \\
+Probability & Almost certain (4): 2 of 24 (hotspot) and 2 of 35 (router) reports late (C4). \\
+Evidence required & C4 repeated after the fix, same profile: every report within 30\,s. \\
+Mitigation & Send activity changes ahead of heartbeats so a resent heartbeat cannot hold up a change; retest by Dec 1. \\
 \bottomrule
 \end{tabular}
 \end{table}
