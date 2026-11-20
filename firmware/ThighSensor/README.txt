@@ -30,6 +30,11 @@ Files (keep together in this folder)
     SDA  ----------------  GPIO21
     AD0  ----------------  GND   (address 0x68; or leave unconnected, the GY-521 pulls it low)
 
+  POWER IN THE STAGE 1 PROTOTYPE: a USB power bank plugged into the ESP32's USB-C port.
+  The battery, charger and switch below are the planned battery wiring for a later version;
+  they were not used in the Stage 1 tests.
+
+  Planned battery wiring:
   Battery (in the lid) -> TP4056 B+ / B-
   TP4056 OUT+ -> slide switch -> ESP32 5V (VIN) pin
   TP4056 OUT- -> ESP32 GND
@@ -40,11 +45,12 @@ Files (keep together in this folder)
      USB-C port.
   !! Never connect the battery to the 3V3 pin (4.2 V when full is too much for the ESP32).
 
-  Known limit of this wiring: the dev board's regulator drops ~1 V, so from a 3.7 V LiPo the
+  Known limit of the planned battery wiring: the dev board's regulator drops ~1 V, so from a 3.7 V LiPo the
   ESP32 gets ~2.7-3.2 V. It usually runs, but may reset when the battery is low. The firmware
-  helps (ESP-NOW only, low radio power). The proper fix, already chosen on Nov 6, is an
-  AP2112K-3.3 regulator to the 3V3 pin with a 470 uF capacitor (Project II PCB). For tests
-  where resets would spoil the data, power the unit from a USB power bank instead.
+  helps (ESP-NOW only, low radio power). No regulator is fitted in this prototype. The proper
+  fix is a low-dropout 3.3 V regulator (e.g. AP2112K-3.3 or HT7333) to the 3V3 pin with a
+  470 uF capacitor, planned for the Project II PCB. Until then the unit runs from a USB power
+  bank through its USB-C port (as in all the Nov 19 tests).
 
 
 2. UPLOAD
