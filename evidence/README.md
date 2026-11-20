@@ -35,7 +35,7 @@ own threshold; C12 is an observation). Failed and invalid attempts are kept.
 |---|---|
 | `C1_live_classification/` | Scored scripted session (printout), dashboard after the test; also the C12 screenshot |
 | `C2_classifier_error/` | Leave-one-wearer-out error per wearer (3 models), confusion matrices, effect of the sedentary-class definition and of smoothing |
-| `C3_C4_C5_link_tests/` | `link_check.py` printouts: healthy link (C3), degraded link attempts 1–3 (C4), broker outage (C5); C13 photos |
+| `C3_C4_C5_link_tests/` | `link_check.py` printouts and the CSVs it wrote (named by date and time of the run): healthy link (C3), degraded link attempts 1–3 (C4), broker outage (C5); C13 photos |
 | `C6_memory_footprint/` | Compile results (both partition schemes), exported model, C-vs-Python equivalence check (8,994/8,994 windows) |
 | `C9_fusion/` | Fusion methods compared on selfBACK (9 and 33 people); own-hardware session S0012 and its results |
 | `C14_features/` | Feature separation on PAMAP2 and on the watch (Serial log, figure, numbers) |
